@@ -1,0 +1,25 @@
+#!/bin/bash
+
+trap "exit" INT TERM ERR
+trap "kill 0" EXIT
+
+
+echo ""
+echo "Watching for changes..."
+echo "====================================================================================================="
+echo ""
+
+# We do a one time assemble first ... this is a work-around for bugs in the continuous compilation
+#./gradlew assemble -x test -x versionFile -x shadowJar -x JsJar
+
+./gradlew -t \
+  assemble \
+  :play:processDceDevKotlinJs \
+  -x browserProductionWebpack \
+  -x processDceKotlinJs \
+  ;
+
+########################################################################
+
+echo ">> Waiting ... in dir $(pwd) <<"
+while :; do sleep 2073600; done

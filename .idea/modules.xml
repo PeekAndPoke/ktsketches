@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1075119593/kraftdev.libs.ultra.codegen.main.iml" filepath="$PROJECT_DIR$/.idea/modules/-1075119593/kraftdev.libs.ultra.codegen.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1075119593/kraftdev.libs.ultra.codegen.test.iml" filepath="$PROJECT_DIR$/.idea/modules/-1075119593/kraftdev.libs.ultra.codegen.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.commonMain.iml" filepath="$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.commonMain.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.commonTest.iml" filepath="$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.commonTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.jsMain.iml" filepath="$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.jsMain.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.jsTest.iml" filepath="$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.jsTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.jvmMain.iml" filepath="$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.jvmMain.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.jvmTest.iml" filepath="$PROJECT_DIR$/.idea/modules/-1066561669/kraftdev.libs.ultra.common2.jvmTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1930242824/kraftdev.libs.ultra.depot.main.iml" filepath="$PROJECT_DIR$/.idea/modules/1930242824/kraftdev.libs.ultra.depot.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1930242824/kraftdev.libs.ultra.depot.test.iml" filepath="$PROJECT_DIR$/.idea/modules/1930242824/kraftdev.libs.ultra.depot.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1612894691/kraftdev.libs.ultra.main.iml" filepath="$PROJECT_DIR$/.idea/modules/1612894691/kraftdev.libs.ultra.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1612894691/kraftdev.libs.ultra.test.iml" filepath="$PROJECT_DIR$/.idea/modules/1612894691/kraftdev.libs.ultra.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-491392404/kraftdev.libs.ultrajs.main.iml" filepath="$PROJECT_DIR$/.idea/modules/-491392404/kraftdev.libs.ultrajs.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-491392404/kraftdev.libs.ultrajs.test.iml" filepath="$PROJECT_DIR$/.idea/modules/-491392404/kraftdev.libs.ultrajs.test.iml" />
+    </modules>
+  </component>
+</project>

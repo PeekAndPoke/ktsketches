@@ -1,0 +1,44 @@
+plugins {
+    id 'org.jetbrains.kotlin.js'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.4.10'
+}
+
+//compileKotlinJs {
+//    kotlinOptions {
+//        freeCompilerArgs += "-Xopt-in=kotlin.ExperimentalStdlibApi"
+//        freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
+//        freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.FlowPreview"
+//        freeCompilerArgs += "-XXLanguage:+InlineClasses"
+//    }
+//}
+
+group 'de.peekandpoke.ultrajs'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+
+    implementation("org.jetbrains.kotlinx:kotlinx-html-js:${kotlinx_html_version}")
+    implementation("org.jetbrains:kotlin-css:$kotlin_css_version")
+
+//    testApi group: 'junit', name: 'junit', version: '4.12'
+//    testImplementation "org.jetbrains.kotlin:kotlin-test-js:$kotlin_version"
+}
+
+kotlin {
+    js {
+        browser {
+            webpackTask {
+                output.libraryTarget = "commonjs2"
+            }
+            dceTask {
+//                dceOptions.devMode = true
+            }
+        }
+        binaries.executable()
+    }
+}

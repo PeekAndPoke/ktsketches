@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel target="1.8">
+      <module name="kraftdev.libs.ultra.common2.commonMain" target="1.8" />
+      <module name="kraftdev.libs.ultra.common2.commonTest" target="1.6" />
+      <module name="kraftdev.libs.ultra.common2.jvmMain" target="1.8" />
+      <module name="kraftdev.libs.ultra.common2.jvmTest" target="1.6" />
+      <module name="kraftdev.libs.ultra.semanticui.commonMain" target="1.8" />
+      <module name="kraftdev.libs.ultra.semanticui.commonTest" target="1.6" />
+      <module name="kraftdev.libs.ultra.semanticui.jvmMain" target="1.8" />
+      <module name="kraftdev.libs.ultra.semanticui.jvmTest" target="1.6" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

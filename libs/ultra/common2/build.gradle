@@ -1,0 +1,84 @@
+buildscript {
+    ext.kotlin_version = '1.4.10'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+plugins {
+    id 'org.jetbrains.kotlin.multiplatform'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.4.10'
+}
+
+group 'de.peekandpoke.ultra2'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    jcenter()
+
+    // PeekAndPoke
+    maven { url 'https://dl.bintray.com/peekandpoke/maven' }
+}
+
+kotlin {
+    js {
+        browser {
+            webpackTask {
+                output.libraryTarget = "commonjs2"
+            }
+            dceTask {
+//                dceOptions.devMode = true
+            }
+        }
+        binaries.executable()
+    }
+
+    jvm {
+        compilations.main.kotlinOptions {
+            // Setup the Kotlin compiler options for the 'main' compilation:
+            jvmTarget = "1.8"
+        }
+    }
+
+    sourceSets {
+
+        commonMain {
+            dependencies {
+                api "org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinx_serialization_version"
+                api "org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinx_serialization_version"
+                api "org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinx_coroutines_version}"
+
+                api "de.peekandpoke.ultra:commonmp:$ultra_version"
+            }
+        }
+
+        commonTest {
+            dependencies {
+                implementation kotlin('test-common')
+                implementation kotlin('test-annotations-common')
+            }
+        }
+
+        jsMain {
+            dependencies {
+                api "de.peekandpoke.ultra:commonmp-js:$ultra_version"
+            }
+        }
+
+        jvmMain {
+            dependencies {
+                api "de.peekandpoke.ultra:commonmp-jvm:$ultra_version"
+            }
+        }
+    }
+    targets {
+        configure([]) {
+            tasks.getByName(compilations.main.compileKotlinTaskName).kotlinOptions {
+                jvmTarget = "1.8"
+            }
+        }
+    }
+}

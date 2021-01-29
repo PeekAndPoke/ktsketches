@@ -1,0 +1,16 @@
+
+rootProject.name = 'kraftdev'
+
+include ":play"
+
+include ":libs:kraft"
+
+include ":libs:ultra:common2"
+include ":libs:ultra:codegen"
+include ":libs:ultra:depot"
+include ":libs:ultra:mailing"
+include ":libs:ultra:polyglot"
+include ":libs:ultra:semanticui"
+include ":libs:ultra:vault"
+
+include ":libs:ultrajs"

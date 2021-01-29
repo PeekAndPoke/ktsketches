@@ -1,0 +1,67 @@
+plugins {
+    id 'org.jetbrains.kotlin.js'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.4.10'
+}
+
+//compileKotlinJs {
+//    kotlinOptions {
+//        freeCompilerArgs += "-Xopt-in=kotlin.ExperimentalStdlibApi"
+////        freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
+////        freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.FlowPreview"
+////        freeCompilerArgs += "-XXLanguage:+InlineClasses"
+//    }
+//}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    jcenter()
+    maven { url 'https://dl.bintray.com/peekandpoke/maven' }
+}
+
+dependencies {
+
+    api("org.jetbrains.kotlinx:kotlinx-html-js:$kotlinx_html_version")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinx_coroutines_version")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinx_serialization_version")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinx_serialization_version")
+    api("org.jetbrains:kotlin-css:$kotlin_css_version")
+
+    // Ultra
+    api("de.peekandpoke.ultra:commonmp-js:$ultra_version")
+
+    // project deps
+    api project(":libs:ultrajs")
+    api project(":libs:ultra:semanticui")
+
+    // External Javascript libraries
+    implementation npm('mithril', '2.0.4')
+    // JWT
+    implementation npm('jwt-decode', '2.2.0')
+    // Markdown to HTML
+    implementation npm('marked', '1.1.0')
+    // Javascript sandbox
+    implementation npm('@nx-js/compiler-util', '2.0.0')
+    // Chart.js
+    implementation npm('chart.js', '2.9.4')
+
+
+//    testApi group: 'junit', name: 'junit', version: '4.12'
+//    testImplementation "org.jetbrains.kotlin:kotlin-test-js:$kotlin_version"
+}
+
+kotlin {
+    js {
+        browser {
+            webpackTask {
+                output.libraryTarget = "commonjs2"
+            }
+            dceTask {
+//                dceOptions.devMode = true
+            }
+        }
+        binaries.executable()
+    }
+}

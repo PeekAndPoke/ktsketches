@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="kraft-1.0-SNAPSHOT">
+    <output-path>$PROJECT_DIR$/libs/kraft/build/libs</output-path>
+    <root id="archive" name="kraft-1.0-SNAPSHOT.jar">
+      <element id="module-output" name="org.example.kraftdev.libs.kraft.main" />
+    </root>
+  </artifact>
+</component>

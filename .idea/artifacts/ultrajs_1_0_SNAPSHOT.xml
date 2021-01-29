@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="ultrajs-1.0-SNAPSHOT">
+    <output-path>$PROJECT_DIR$/libs/ultrajs/build/libs</output-path>
+    <root id="archive" name="ultrajs-1.0-SNAPSHOT.jar">
+      <element id="module-output" name="de.peekandpoke.ultrajs.kraftdev.libs.ultrajs.main" />
+    </root>
+  </artifact>
+</component>

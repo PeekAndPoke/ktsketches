@@ -1,0 +1,34 @@
+# ignore IntelliJ project files the are not user specific
+*.iml
+/*.iml
+/.idea/workspace.xml
+/.idea/tasks.xml
+/.idea/misc.xml
+/.idea/libraries
+/.idea/shelf
+dataSources.ids
+datasources.xml
+
+# misc build and tmp directories, other local files
+/.gradle
+local.properties
+/out
+*/out
+*/*/out
+*/*/*/out
+*/*/*/*/out
+/build
+*/build
+*/*/build
+*/*/*/build
+*/*/*/*/build
+/.kotlintest
+*/.kotlintest
+*/*/.kotlintest
+*/*/*/.kotlintest
+*/*/*/*/.kotlintest
+/tmp
+/logs
+.attach_pid*
+hs_err_pid*
+node_modules
