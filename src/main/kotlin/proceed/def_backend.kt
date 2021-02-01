@@ -1,21 +1,25 @@
 package de.peekandpoke.kraft.dev.proceed
 
+import de.peekandpoke.kraft.dev.proceed.shared.StageId
+import de.peekandpoke.kraft.dev.proceed.shared.WorkflowDescription
+import de.peekandpoke.kraft.dev.proceed.shared.WorkflowId
+
 
 fun <S, B : S> createWorkflowBackend(
-    workflow: Workflow<S>,
+    workflow: WorkflowDescription<S>,
     block: WorkflowBackendBuilder<S, B>.() -> Unit
 ): WorkflowBackend<B> =
     WorkflowBackendBuilder<S, B>(workflow).apply(block).build()
 
 
-class WorkflowBackendBuilder<S, B : S>(private val workflow: Workflow<S>) {
+class WorkflowBackendBuilder<S, B : S>(private val workflow: WorkflowDescription<S>) {
 
-    private val stepsMap = mutableMapOf<StepId<*>, WorkflowBackend.Step<B, *>>()
+    private val stepsMap = mutableMapOf<WorkflowDescription.Step<*>, WorkflowBackend.Step<B, *>>()
 
-    infix fun <D> StepId<D>.handledBy(handler: WorkflowBackend.StepHandler<B, D>) {
+    infix fun <D> WorkflowDescription.Step<D>.handledBy(handler: WorkflowBackend.StepHandler<B, D>) {
 
         stepsMap[this] = WorkflowBackend.Step(
-            id = this,
+            description = this,
             handler = handler
             // TODO: how about the visibility
         )
@@ -53,13 +57,18 @@ class WorkflowBackend<S>(
     class Stage<S>(
         val id: StageId,
         val steps: List<Step<S, *>>,
-    )
+    ) {
+        val idStr get() = id.id
+    }
 
     class Step<S, D>(
-        val id: StepId<D>,
+        val description: WorkflowDescription.Step<D>,
         val handler: StepHandler<S, D>,
         val visibility: (S) -> Boolean = { true },
-    )
+    ) {
+        val id get() = description.id
+        val idStr get() = id.id
+    }
 
     sealed class StepHandler<S, D> {
 

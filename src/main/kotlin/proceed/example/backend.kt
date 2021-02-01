@@ -1,6 +1,8 @@
 package de.peekandpoke.kraft.dev.proceed.example
 
 import de.peekandpoke.kraft.dev.proceed.*
+import de.peekandpoke.kraft.dev.proceed.shared.PersistentWorkflowData
+import de.peekandpoke.kraft.dev.proceed.shared.WorkflowData
 import de.peekandpoke.ultra.slumber.Codec
 import kotlinx.coroutines.delay
 import java.time.Instant
@@ -15,6 +17,7 @@ object SendAccountActivationEmail : WorkflowBackend.StepHandler.Automatic<Bookin
 
     override suspend fun StepExecutor<Booking>.execute() {
         println("sending account activation email to ${subject.email}")
+        comment("sending account activation email to ${subject.email}")
 
         markAsDone()
     }
@@ -24,6 +27,7 @@ object SendConfirmationEmail : WorkflowBackend.StepHandler.Automatic<Booking>() 
 
     override suspend fun StepExecutor<Booking>.execute() {
         println("sending reservation confirmation email to ${subject.email}")
+        comment("sending reservation confirmation email to ${subject.email}")
 
         markAsDone()
     }
@@ -32,9 +36,8 @@ object SendConfirmationEmail : WorkflowBackend.StepHandler.Automatic<Booking>() 
 object SetCustomerAddress : WorkflowBackend.StepHandler.Interactive<Booking, AddressData>() {
 
     override suspend fun StepExecutor<Booking>.execute(data: AddressData) {
-        println(
-            "Executing interactive step with data: $data"
-        )
+        println("Executing interactive step with data: $data")
+        comment("Executing interactive step with data: $data")
 
         modifySubject {
             it.copy(address = data.address)
@@ -48,7 +51,7 @@ class CompleteAfter(private val millis: Long) : WorkflowBackend.StepHandler.Auto
 
     override suspend fun StepExecutor<Booking>.execute() {
 
-        val deadline = data.createdAt.plusMillis(millis)
+        val deadline = workflowData.createdAt.plusMillis(millis)
 
         if (deadline.isBefore(Instant.now())) {
             markAsDone()
@@ -58,7 +61,7 @@ class CompleteAfter(private val millis: Long) : WorkflowBackend.StepHandler.Auto
 
 class CountUntil(private val target: Int) : WorkflowBackend.StepHandler.Automatic<Booking>() {
 
-    private val counter = WorkflowData.StepValue("counter", 0)
+    private val counter = WorkflowData.Value("counter", 0)
 
     override suspend fun StepExecutor<Booking>.execute() {
 
@@ -121,7 +124,7 @@ suspend fun main() {
         val incomplete = engine.getIncompleteSteps(BookingFlow.BookedStage.id)
 
         println(
-            "Stage not yet completed: ${incomplete.map { "${it.id.id} -> ${engine.workflowData.getStepState(it)}" }}"
+            "Stage not yet completed: ${incomplete.map { "${it.id} -> ${it.state}" }}"
         )
 
         println(codec.slumber(engine.workflowData.toPersistent()))

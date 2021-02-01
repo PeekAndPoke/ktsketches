@@ -1,7 +1,8 @@
 package de.peekandpoke.kraft.dev.proceed
 
+import de.peekandpoke.kraft.dev.proceed.shared.*
+import de.peekandpoke.ultra.common.datetime.PortableDateTime
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.SerialName
 import java.time.Instant
 import kotlin.math.max
 import kotlin.math.min
@@ -10,158 +11,170 @@ import kotlin.reflect.full.declaredMemberExtensionFunctions
 import kotlin.reflect.full.isSupertypeOf
 
 class StepExecutor<S>(
+    val stage: WorkflowBackend.Stage<S>,
     val step: WorkflowBackend.Step<S, *>,
     subject: S,
-    val data: MutableWorkflowData<S>,
+    val workflowData: MutableWorkflowData<S>,
 ) {
-    var subject = subject
+    var subject: S = subject
         private set
 
-    fun markProgress(current: Number, target: Number) {
+    val stageData: MutableWorkflowData.MutableStageData<S>
+        get() = workflowData.getStage(stage)
+
+    val stepData: MutableWorkflowData.MutableStepData<S>
+        get() = stageData.getStep(step)
+
+    fun setState(state: WorkflowState) {
+        stepData.apply {
+            setState(state)
+            addLog(logEntry(state = state))
+        }
+    }
+
+    fun markAsOpen(): Unit = setState(WorkflowState.Open)
+
+    fun markProgress(current: Number, target: Number): Unit =
         markProgress(current.toDouble() / target.toDouble())
-    }
 
-    fun markProgress(progress: Double) {
-        data.setStepState(step, StepState.Progress(max(0.0, min(progress, 1.0))))
-    }
+    fun markProgress(progress: Double): Unit = setState(WorkflowState.Progress(max(0.0, min(progress, 1.0))))
 
-    fun markAsDone() {
-        data.setStepState(step, StepState.Done)
-    }
+    fun markAsDone(): Unit = setState(WorkflowState.Done)
 
-    fun markAsFailed() {
-        data.setStepState(step, StepState.Failed)
-    }
+    fun markAsSkipped(): Unit = setState(WorkflowState.Skipped)
 
-    fun markAsSkipped() {
-        data.setStepState(step, StepState.Skipped)
-    }
+    fun markAsFailed(): Unit = setState(WorkflowState.Failed)
 
-    fun <T: Any> WorkflowData.StepValue<T>.modify(modify: (T) -> T): T = set(modify(get()))
+    fun <T : Any> WorkflowData.Value<T>.modify(modify: (T) -> T): T = set(modify(get()))
 
-    fun <T : Any> WorkflowData.StepValue<T>.get(): T = getValue(this)
+    fun <T : Any> WorkflowData.Value<T>.get(): T = getValue(this)
 
-    fun <T : Any> getValue(key: WorkflowData.StepValue<T>): T = data.getStepValue(step, key)
+    fun <T : Any> getValue(key: WorkflowData.Value<T>): T = stepData.getValue(step, key)
 
-    fun <T : Any> WorkflowData.StepValue<T>.set(value: T): T = setValue(this, value)
+    fun <T : Any> WorkflowData.Value<T>.set(value: T): T = setValue(this, value)
 
-    fun <T : Any> setValue(key: WorkflowData.StepValue<T>, value: T): T = value.also {
-        data.setStepValue(step, key, value)
+    fun <T : Any> setValue(key: WorkflowData.Value<T>, value: T): T = value.also {
+        stepData.apply {
+            setValue(key, value)
+            addLog(logEntry(key = key, value = value))
+        }
     }
 
     fun modifySubject(block: (S) -> S) {
         subject = block(subject)
     }
+
+    /**
+     * Adds a log to the step
+     */
+    fun comment(comment: String) {
+        stepData.addLog(
+            WorkflowData.LogEntry.Comment(ts = now(), comment = comment)
+        )
+    }
+
+    private fun logEntry(state: WorkflowState) =
+        WorkflowData.LogEntry.StateChange(ts = now(), state = state)
+
+    private fun <T : Any> logEntry(key: WorkflowData.Value<T>, value: T) =
+        WorkflowData.LogEntry.ValueChange(ts = now(), key = key.name, value = value.toString())
+
+    private fun now() = PortableDateTime(Instant.now().toEpochMilli())
 }
 
-sealed class StepState {
-
-    interface FinalState
-
-    // NON-Final states ////////////////////////////////////////////
-
-    @SerialName("open")
-    object Open : StepState() {
-        override fun toString() = "open"
-    }
-
-    @SerialName("retry")
-    data class Retry(val count: Int) : StepState() {
-        override fun toString() = "retry: $count"
-    }
-
-    @SerialName("progress")
-    data class Progress(val progress: Double): StepState() {
-        override fun toString() = "progress: $progress"
-    }
-
-    // FINAL states ////////////////////////////////////////////////
-
-    @SerialName("skipped")
-    object Skipped : StepState(), FinalState {
-        override fun toString() = "skipped"
-    }
-
-    @SerialName("done")
-    object Done : StepState(), FinalState {
-        override fun toString() = "done"
-    }
-
-    @SerialName("failed")
-    object Failed : StepState(), FinalState {
-        override fun toString() = "failed"
-    }
-}
-
-interface WorkflowData<S> {
-
-    data class StepValue<T : Any>(val name: String, val default: T) {
-        override fun toString() = name
-    }
-
-    val currentStage: StageId
-
-    val createdAt: Instant
-
-    val stepStates: Map<String, StepState>
-
-    val stepData: Map<String, Map<String, Any>>
-
-    fun isCompleted(step: WorkflowBackend.Step<S, *>) = stepStates[step.id.id] is StepState.FinalState
-
-    fun isNotCompleted(step: WorkflowBackend.Step<S, *>) = !isCompleted(step)
-
-    fun getStepState(step: WorkflowBackend.Step<S, *>) = stepStates[step.id.id] ?: StepState.Open
-
-    fun <T : Any> getStepValue(step: WorkflowBackend.Step<S, *>, key: StepValue<T>): T {
-
-        val map = stepData[step.id.id] ?: return key.default
-
-        return when {
-            map.containsKey(key.name) -> map[key.name]!! as? T ?: key.default
-            else -> key.default
-        }
-    }
-}
-
-data class PersistentWorkflowData<S>(
-    override val currentStage: StageId,
-    override val createdAt: Instant = Instant.now(),
-    override val stepStates: Map<String, StepState> = emptyMap(),
-    override val stepData: Map<String, Map<String, Any>> = emptyMap(),
-) : WorkflowData<S> {
-
-    fun toMutable() = MutableWorkflowData<S>(
-        currentStage = currentStage,
-        createdAt = createdAt,
-        stepStates = stepStates.toMutableMap(),
-        stepData = stepData.entries.map { it.key to it.value.toMutableMap() }.toMap().toMutableMap()
-    )
-}
 
 class MutableWorkflowData<S>(
     override val currentStage: StageId,
     override val createdAt: Instant,
-    override val stepStates: MutableMap<String, StepState>,
-    override val stepData: MutableMap<String, MutableMap<String, Any>>,
+    override val stages: MutableMap<String, MutableStageData<S>>,
 ) : WorkflowData<S> {
 
-    fun toPersistent() = PersistentWorkflowData<S>(
+    companion object {
+        fun <S> of(src: WorkflowData<S>): MutableWorkflowData<S> = MutableWorkflowData(
+            currentStage = src.currentStage,
+            createdAt = src.createdAt,
+            stages = src.stages.mapValues { (_, stage) ->
+                MutableStageData(
+                    id = stage.id,
+                    steps = stage.steps.mapValues { (_, step) ->
+                        MutableStepData<S>(
+                            id = step.id,
+                            state = step.state,
+                            data = step.data.toMutableMap(),
+                            logs = step.logs.toMutableList(),
+                        )
+                    }.toMutableMap()
+                )
+            }.toMutableMap()
+        )
+    }
+
+    class MutableStageData<S>(
+        override val id: StageId,
+        override val steps: MutableMap<String, MutableStepData<S>>
+    ) : WorkflowData.StageData<S> {
+
+        fun getStep(stepId: StepId): MutableStepData<S> = steps.getOrPut(stepId.id) {
+            MutableStepData(
+                id = stepId,
+                state = WorkflowState.Undefined,
+                data = mutableMapOf(),
+                logs = mutableListOf(),
+            )
+        }
+
+        override fun getStep(step: WorkflowBackend.Step<S, *>): MutableStepData<S> = getStep(step.id)
+    }
+
+    class MutableStepData<S>(
+        override val id: StepId,
+        state: WorkflowState,
+        override val data: MutableMap<String, Any>,
+        override val logs: MutableList<WorkflowData.LogEntry>,
+    ) : WorkflowData.StepData<S> {
+
+        override var state: WorkflowState = state
+            private set
+
+        fun setState(state: WorkflowState) {
+            this.state = state
+        }
+
+        fun <T : Any> setValue(key: WorkflowData.Value<T>, value: T) {
+            data[key.name] = value
+        }
+
+        fun addLog(entry: WorkflowData.LogEntry) {
+            logs.add(entry)
+        }
+    }
+
+    fun getStage(stageId: StageId): MutableStageData<S> = stages.getOrPut(stageId.id) {
+        MutableStageData(
+            id = stageId,
+            steps = mutableMapOf()
+        )
+    }
+
+    override fun getStage(stage: WorkflowBackend.Stage<S>): MutableStageData<S> = getStage(stage.id)
+
+    fun toPersistent(): PersistentWorkflowData<S> = PersistentWorkflowData(
         currentStage = currentStage,
         createdAt = createdAt,
-        stepStates = stepStates.toMap(),
-        stepData = stepData.entries.map { it.key to it.value.toMap() }.toMap(),
+        stages = stages.mapValues { (_, stage) ->
+            PersistentWorkflowData.PersistentStageData(
+                id = stage.id,
+                steps = stage.steps.mapValues { (_, step) ->
+                    PersistentWorkflowData.PersistentStepData(
+                        id = step.id,
+                        state = step.state,
+                        data = step.data.toMap(),
+                        logs = step.logs.toList(),
+                    )
+                }
+            )
+        },
     )
-
-    fun setStepState(step: WorkflowBackend.Step<S, *>, state: StepState) {
-        stepStates[step.id.id] = state
-    }
-
-    fun <T : Any> setStepValue(step: WorkflowBackend.Step<S, *>, key: WorkflowData.StepValue<T>, value: T) {
-        val map = stepData.getOrPut(step.id.id) { mutableMapOf() }
-
-        map[key.name] = value
-    }
 }
 
 class WorkflowEngine<S>(
@@ -174,7 +187,7 @@ class WorkflowEngine<S>(
     var result: S = subject
         private set
 
-    val workflowData = data.toMutable()
+    val workflowData = MutableWorkflowData.of(data)
 
     init {
         // TODO: we need to check the consistency of the workflow upfront
@@ -186,13 +199,15 @@ class WorkflowEngine<S>(
         return getIncompleteSteps(stageId).isEmpty()
     }
 
-    fun getIncompleteSteps(stageId: StageId): List<WorkflowBackend.Step<S, *>> {
+    fun getIncompleteSteps(stageId: StageId): List<WorkflowData.StepData<S>> {
 
         return when (val stage = workflow.stages.firstOrNull { it.id == stageId }) {
 
             null -> emptyList()
 
-            else -> stage.steps.filter { workflowData.isNotCompleted(it) }
+            else -> stage.steps
+                .map { workflowData.getStage(stageId).getStep(it.id) }
+                .filter { it.isNotCompleted() }
         }
     }
 
@@ -203,8 +218,8 @@ class WorkflowEngine<S>(
             ?: error("Stage '${workflow.entry.id}' not present")
 
         currentStage.steps
-            // TODO: TEST that already completed tasks are no longer executed
-            .filter { !workflowData.isCompleted(it) }
+            // TODO: Unit-TEST that already completed tasks are no longer executed
+            .filter { !workflowData.getStage(currentStage).getStep(it.id).isCompleted() }
             .forEach { step ->
 
                 // NOTICE: all steps in a single stage can be executed out of order
@@ -215,7 +230,12 @@ class WorkflowEngine<S>(
 
                         runBlocking {
 
-                            StepExecutor(step = step, subject = result, data = workflowData).also { executor ->
+                            StepExecutor(
+                                stage = currentStage,
+                                step = step,
+                                subject = result,
+                                workflowData = workflowData
+                            ).also { executor ->
                                 handler.apply { executor.execute() }
 
                                 result = executor.subject
@@ -229,13 +249,15 @@ class WorkflowEngine<S>(
             }
     }
 
-    fun executeStep(stepGid: StepId<*>, stepData: Any) {
+    fun <D : Any> executeStep(step: WorkflowDescription.Step<D>, stepData: D) {
 
-        val step = workflow.stages.flatMap { it.steps }.firstOrNull { it.id == stepGid }
+        val found = workflow.stages
+            .flatMap { stage -> stage.steps.map { stage to it } }
+            .firstOrNull { it.second.description.id == step.id }
 
-        step?.let { it ->
+        found?.let { (stage, step) ->
 
-            when (val handler = it.handler) {
+            when (val handler = step.handler) {
                 is WorkflowBackend.StepHandler.Interactive<S, *> -> {
 
                     // get the 'execute' method of the interactive handler
@@ -252,7 +274,12 @@ class WorkflowEngine<S>(
 
                         runBlocking {
 
-                            StepExecutor(step = step, subject = result, data = workflowData).also { executor ->
+                            StepExecutor(
+                                stage = stage,
+                                step = step,
+                                subject = result,
+                                workflowData = workflowData
+                            ).also { executor ->
                                 @Suppress("UNCHECKED_CAST")
                                 (handler as WorkflowBackend.StepHandler.Interactive<S, Any>).apply {
                                     executor.execute(stepData)

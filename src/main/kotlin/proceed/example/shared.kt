@@ -1,12 +1,13 @@
 package de.peekandpoke.kraft.dev.proceed.example
 
-import de.peekandpoke.kraft.dev.proceed.*
+import de.peekandpoke.kraft.dev.proceed.shared.WorkflowDescription
+import de.peekandpoke.kraft.dev.proceed.shared.WorkflowId
 
 data class AddressData(
     val address: String
 )
 
-object BookingFlow : Workflow<BookingFlow.Subject> {
+object BookingFlow : WorkflowDescription<BookingFlow.Subject> {
 
     interface Subject {
         val name: String
@@ -18,11 +19,11 @@ object BookingFlow : Workflow<BookingFlow.Subject> {
 
     override val entry get() = BookedStage.id
 
-    override val stages get() = listOf<Workflow.Stage>(
+    override val stages get() = listOf<WorkflowDescription.Stage>(
         BookedStage
     )
 
-    object BookedStage: Workflow.SimpleStage("Booked") {
+    object BookedStage: WorkflowDescription.SimpleStage("Booked") {
 
         val sendAccountActivationEmail = step("send-account-activation-email")
 
