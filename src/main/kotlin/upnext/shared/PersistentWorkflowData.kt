@@ -6,12 +6,12 @@ import java.time.Instant
 data class PersistentWorkflowData<S>(
     val subjectId: SubjectId,
     val createdAt: PortableDateTime = PortableDateTime(Instant.now().toEpochMilli()),
-    override val activeStages: List<WorkflowStageId>,
+    override val activeStages: Set<StageId>,
     override val stages: Map<String, PersistentStageData<S>> = emptyMap(),
 ) : WorkflowData<S> {
 
     data class PersistentStageData<S>(
-        override val id: WorkflowStageId,
+        override val id: StageId,
         override val steps: Map<String, PersistentStepData<S>>
     ) : WorkflowData.StageData<S>
 

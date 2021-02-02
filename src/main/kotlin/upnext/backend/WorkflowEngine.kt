@@ -1,9 +1,6 @@
 package de.peekandpoke.ktorfx.upnext.backend
 
-import de.peekandpoke.ktorfx.upnext.shared.PersistentWorkflowData
-import de.peekandpoke.ktorfx.upnext.shared.SubjectId
-import de.peekandpoke.ktorfx.upnext.shared.WorkflowDescription
-import de.peekandpoke.ktorfx.upnext.shared.WorkflowState
+import de.peekandpoke.ktorfx.upnext.shared.*
 import de.peekandpoke.ultra.common.datetime.PortableDateTime
 import java.time.Instant
 
@@ -25,48 +22,45 @@ class WorkflowEngine<S>(
 
             stages
                 .map { stage -> stage to data.getStage(stage) }
-                // TODO: Unit-TEST for checking that all steps are initialized
-                .onEach { (stage, _) -> stage.ensureStepsAreInitialized(data) }
-                .forEach { (stage, stageData) ->
-
+                // act on all stages
+                .onEach { (stage, stageData) ->
+                    // act on all automatic steps that are not yet completed
                     stage.steps
                         .map { step -> step to stageData.getStep(step) }
                         // TODO: Unit-TEST that already completed tasks are no longer executed
                         .filter { (_, stepData) -> stepData.isNotCompleted() }
                         .onEach { (step, _) ->
-
-                            when (val handler = step.handler) {
-                                is WorkflowBackend.StepHandler.Automatic<S> -> {
-                                    WorkflowStepExecutor.runBlocking(stage, step, data, handler)
-                                }
+                            if (step.handler is WorkflowBackend.StepHandler.Automatic<S>) {
+                                WorkflowStepExecutor.runBlocking(stage, step, data, step.handler)
                             }
                         }
                 }
+                // trigger stage transitions on all stages
+                .onEach { (stage, _) -> transitionStageIfPossible(stage, data) }
         }
     }
 
     fun <D : Any> executeStep(subjectId: SubjectId, step: WorkflowDescription.Step<D>, stepData: D): Result<S> {
 
-        return runFullCircle(subjectId) { workflowData ->
+        return runFullCircle(subjectId) { data ->
 
-            val found = workflow.stages
+            val stageAndStep = workflow.stages
                 .flatMap { stage -> stage.steps.map { stage to it } }
                 .firstOrNull { it.second.id == step.id }
+                ?: return@runFullCircle
 
-            found
-                // TODO: Unit-TEST for checking that all steps are initialized
-                ?.also { (stage, _) -> stage.ensureStepsAreInitialized(workflowData) }
-                ?.let { (stage, step) ->
+            if (stageAndStep.first.id !in data.activeStages) {
+                // TODO: log something
+                return@runFullCircle
+            }
 
-                    when (val handler = step.handler) {
-                        is WorkflowBackend.StepHandler.Interactive<S, *> -> {
-                            WorkflowStepExecutor.runBlocking(stage, step, workflowData, handler, stepData)
-                        }
-
-                        else -> { /* do nothing */
-                        }
+            stageAndStep
+                .also { (stage, step) ->
+                    if (step.handler is WorkflowBackend.StepHandler.Interactive<S, *>) {
+                        WorkflowStepExecutor.runBlocking(stage, step, data, step.handler, stepData)
                     }
                 }
+                .also { (stage, _) -> transitionStageIfPossible(stage, data) }
         }
     }
 
@@ -77,18 +71,43 @@ class WorkflowEngine<S>(
         //       Mark the entire workflow as failed
         val workflowData = dataRepo.loadOrInit(id, workflow).toMutable()
 
+        // ensure that all stages and steps are setup within the data
+        // TODO: Unit-TEST for checking that all steps are initialized
+        workflowData.ensureIsInitialized()
+
+        // apply to work
         block(workflowData)
 
-        return Result(
-            subject = workflowData.subject,
-            data = workflowData.persist()
-        )
+        return Result(subject = workflowData.subject, data = workflowData.persist())
     }
 
-    private fun WorkflowBackend.Stage<S>.ensureStepsAreInitialized(workflowData: MutableWorkflowData<S>) {
-        steps.forEach { step ->
-            // IMPORTANT: When a stage is entered we need to ensure that every step gets a state!
-            workflowData.getStage(this).getStep(step).setStateIfUndefined(WorkflowState.Open)
+    private fun transitionStageIfPossible(stage: WorkflowBackend.Stage<S>, data: MutableWorkflowData<S>) {
+        val applicable = stage.transitions.filter { it.handler.isApplicable(stage, data) }
+
+        applicable
+            .onEach { transition ->
+                data.removeActiveStage(stage.id)
+                data.addActiveStage(transition.description.target)
+            }
+            .onEach {
+                println("Applied transitions to ${it.description.target}")
+            }
+    }
+
+    private fun MutableWorkflowData<S>.ensureIsInitialized() {
+        // ensure that all stages and steps are setup within the data
+        workflow.stages.forEach { stage ->
+
+            // ensure that every stage is initialized in the data
+            getStage(stage).let { stageData ->
+
+                stage.steps.forEach { step ->
+                    // ensure that every step is initialized in the data
+                    stageData.getStep(step).apply {
+                        setStateIfUndefined(WorkflowState.Undefined)
+                    }
+                }
+            }
         }
     }
 
@@ -96,7 +115,7 @@ class WorkflowEngine<S>(
         subject = subjectRepo.loadWorkflowSubject(subjectId)
         // TODO: use a specific exception here (CouldNotLoadWorkflowSubject)
             ?: error("Workflow subject '${subjectId.id}' was not found"),
-        activeStages = activeStages.toMutableList(),
+        activeStages = activeStages.toMutableSet(),
         createdAt = Instant.ofEpochMilli(createdAt.timestamp),
         stages = stages.mapValues { (_, stage) ->
             MutableWorkflowData.MutableStageData(
@@ -121,7 +140,7 @@ class WorkflowEngine<S>(
         // Create persistent workflow data
         val persistent = PersistentWorkflowData<S>(
             subjectId = savedSubjectId,
-            activeStages = activeStages.toList(),
+            activeStages = activeStages.toSet(),
             createdAt = PortableDateTime(createdAt.toEpochMilli()),
             stages = stages.mapValues { (_, stage) ->
                 PersistentWorkflowData.PersistentStageData(

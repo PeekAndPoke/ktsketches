@@ -34,10 +34,10 @@ interface WorkflowData<S> {
     }
 
     interface StageData<S> {
-        val id: WorkflowStageId
+        val id: StageId
         val steps: Map<String, StepData<S>>
 
-        fun getStep(step: WorkflowBackend.Step<S, *>): StepData<S>? = steps[step.idStr]
+        fun getStep(step: WorkflowBackend.Step<S, *>): StepData<S>? = steps[step.id.id]
     }
 
     interface StepData<S> {
@@ -60,21 +60,21 @@ interface WorkflowData<S> {
         }
     }
 
-    val activeStages: List<WorkflowStageId>
+    val activeStages: Set<StageId>
 
     val stages: Map<String, StageData<S>>
 
-    fun getStage(stageId: WorkflowStageId): StageData<S>? = stages[stageId.id]
+    fun getStage(stageId: StageId): StageData<S>? = stages[stageId.id]
 
     fun getStage(stage: WorkflowBackend.Stage<S>): StageData<S>? = getStage(stageId = stage.id)
 
-    fun isCompleted(stageId: WorkflowStageId): Boolean {
+    fun isCompleted(stageId: StageId): Boolean {
         return getIncompleteSteps(stageId).isEmpty()
     }
 
-    fun isNotCompleted(stageId: WorkflowStageId): Boolean = !isCompleted(stageId)
+    fun isNotCompleted(stageId: StageId): Boolean = !isCompleted(stageId)
 
-    fun getIncompleteSteps(stageId: WorkflowStageId): List<StepData<S>> {
+    fun getIncompleteSteps(stageId: StageId): List<StepData<S>> {
 
         val stage = getStage(stageId) ?: return emptyList()
 

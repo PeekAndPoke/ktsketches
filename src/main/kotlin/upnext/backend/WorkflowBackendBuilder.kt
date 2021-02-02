@@ -6,22 +6,34 @@ class WorkflowBackendBuilder<S, B : S>(private val workflow: WorkflowDescription
 
     private val stepsMap = mutableMapOf<WorkflowDescription.Step<*>, WorkflowBackend.Step<B, *>>()
 
+    private val transitionsMap =
+        mutableMapOf<WorkflowDescription.StageTransition, WorkflowBackend.StageTransition<B>>()
+
     infix fun <D> WorkflowDescription.Step<D>.handledBy(handler: WorkflowBackend.StepHandler<B, D>) {
 
         stepsMap[this] = WorkflowBackend.Step(
             description = this,
             handler = handler
-            // TODO: how about the visibility
+        )
+    }
+
+    infix fun WorkflowDescription.StageTransition.handledBy(handler: WorkflowBackend.TransitionHandler<B>) {
+        transitionsMap[this] = WorkflowBackend.StageTransition(
+            description = this,
+            handler = handler
         )
     }
 
     fun build(): WorkflowBackend<B> {
 
         val errors = listOf(
+            // check stages
             *checkForUniqueStageIds(),
-            *checkForUniqueStepIds(),
             *checkStageEntryPointsAreNotEmpty(),
             *checkStageEntryPointsExist(),
+            *checkAllStageTransitionsHaveHandler(),
+            // check steps
+            *checkForUniqueStepIds(),
             *checkAllStepsHaveAHandler(),
         )
 
@@ -35,9 +47,12 @@ class WorkflowBackendBuilder<S, B : S>(private val workflow: WorkflowDescription
             entryPoints = workflow.entryPoints,
             stages = workflow.stages.map { stage ->
                 WorkflowBackend.Stage(
-                    id = stage.id,
+                    description = stage,
                     steps = stage.steps.map { step ->
                         stepsMap[step]!!
+                    },
+                    transitions = stage.transitions.map { transition ->
+                        transitionsMap[transition]!!
                     }
                 )
             }
@@ -52,17 +67,8 @@ class WorkflowBackendBuilder<S, B : S>(private val workflow: WorkflowDescription
             .toTypedArray()
     }
 
-    private fun checkForUniqueStepIds(): Array<out String> {
-        return workflow.stages
-            .flatMap { it.steps }
-            .groupBy { it.id }
-            .filter { (_, v) -> v.size > 1 }
-            .map { (k, _) -> "Id of step '${k.id}' is not unique" }
-            .toTypedArray()
-    }
-
     private fun checkStageEntryPointsAreNotEmpty(): Array<out String> {
-        return when(workflow.entryPoints.isEmpty()) {
+        return when (workflow.entryPoints.isEmpty()) {
             true -> arrayOf("There are no stage entry points defined")
             else -> arrayOf()
         }
@@ -73,7 +79,26 @@ class WorkflowBackendBuilder<S, B : S>(private val workflow: WorkflowDescription
 
         return workflow.entryPoints
             .filter { it !in allStageIds }
-            .map { "Stage entry point '${it.id}' does not exist"}
+            .map { "Stage entry point '${it.id}' does not exist" }
+            .toTypedArray()
+    }
+
+    private fun checkAllStageTransitionsHaveHandler(): Array<out String> {
+        val missingHandlers = workflow.stages
+            .flatMap { it.transitions }
+            .filter { !transitionsMap.contains(it) }
+
+        return missingHandlers
+            .map { "Stage transition '${it.id}' does not have a transition handler" }
+            .toTypedArray()
+    }
+
+    private fun checkForUniqueStepIds(): Array<out String> {
+        return workflow.stages
+            .flatMap { it.steps }
+            .groupBy { it.id }
+            .filter { (_, v) -> v.size > 1 }
+            .map { (k, _) -> "Id of step '${k.id}' is not unique" }
             .toTypedArray()
     }
 

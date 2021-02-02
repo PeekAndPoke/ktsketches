@@ -1,12 +1,15 @@
 package de.peekandpoke.ktorfx.upnext.backend
 
-import de.peekandpoke.ktorfx.upnext.shared.*
+import de.peekandpoke.ktorfx.upnext.shared.StageId
+import de.peekandpoke.ktorfx.upnext.shared.StepId
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowData
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowState
 import java.time.Instant
 
 
 class MutableWorkflowData<S>(
     subject: S,
-    override val activeStages: MutableList<WorkflowStageId>,
+    override val activeStages: MutableSet<StageId>,
     val createdAt: Instant,
     override val stages: MutableMap<String, MutableStageData<S>>,
 ) : WorkflowData<S> {
@@ -17,7 +20,7 @@ class MutableWorkflowData<S>(
         internal set
 
     class MutableStageData<S>(
-        override val id: WorkflowStageId,
+        override val id: StageId,
         override val steps: MutableMap<String, MutableStepData<S>>
     ) : WorkflowData.StageData<S> {
 
@@ -62,7 +65,15 @@ class MutableWorkflowData<S>(
         }
     }
 
-    override fun getStage(stageId: WorkflowStageId): MutableStageData<S> = stages.getOrPut(stageId.id) {
+    fun removeActiveStage(stageId: StageId) {
+        activeStages.remove(stageId)
+    }
+
+    fun addActiveStage(stageId: StageId) {
+        activeStages.add(stageId)
+    }
+
+    override fun getStage(stageId: StageId): MutableStageData<S> = stages.getOrPut(stageId.id) {
         MutableStageData(
             id = stageId,
             steps = mutableMapOf()

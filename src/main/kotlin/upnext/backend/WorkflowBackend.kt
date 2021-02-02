@@ -4,23 +4,29 @@ import de.peekandpoke.ktorfx.upnext.shared.*
 
 class WorkflowBackend<S>(
     val id: WorkflowId,
-    val entryPoints: List<WorkflowStageId>,
+    val entryPoints: Set<StageId>,
     val stages: List<Stage<S>>,
 ) {
     class Stage<S>(
-        val id: WorkflowStageId,
+        val description: WorkflowDescription.Stage,
         val steps: List<Step<S, *>>,
+        val transitions: List<StageTransition<S>>,
     ) {
-        val idStr get() = id.id
+        val id: StageId get() = description.id
+    }
+
+    class StageTransition<S>(
+        val description: WorkflowDescription.StageTransition,
+        val handler: TransitionHandler<S>
+    ) {
+        val id: StageTransitionId get() = description.id
     }
 
     class Step<S, D>(
         val description: WorkflowDescription.Step<D>,
         val handler: StepHandler<S, D>,
-        val visibility: (S) -> Boolean = { true },
     ) {
-        val id get() = description.id
-        val idStr get() = id.id
+        val id: StepId get() = description.id
     }
 
     sealed class StepHandler<S, D> {
@@ -36,4 +42,15 @@ class WorkflowBackend<S>(
         }
     }
 
+    interface TransitionHandler<S> {
+        fun isApplicable(stage: Stage<S>, workflowData: MutableWorkflowData<S>): Boolean
+
+        class WhenAllStepsAreCompleted<S> : TransitionHandler<S> {
+            override fun isApplicable(stage: Stage<S>, workflowData: MutableWorkflowData<S>): Boolean {
+                return stage.steps.all { step ->
+                    workflowData.getStage(stage).getStep(step).isCompleted()
+                }
+            }
+        }
+    }
 }

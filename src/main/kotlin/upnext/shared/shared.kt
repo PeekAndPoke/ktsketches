@@ -8,9 +8,16 @@ data class WorkflowId(val id: String)
 /**
  * Id of a workflow stage
  */
-data class WorkflowStageId(val id: String) {
+data class StageId(val id: String) {
     fun stepId(stepId: String) = StepId("$id::$stepId")
+
+    fun transitionId(transitionId: String) = StageTransitionId("$id::$transitionId")
 }
+
+/**
+ * Id of a stage transition
+ */
+data class StageTransitionId(val id: String)
 
 /**
  * Id of a workflow step

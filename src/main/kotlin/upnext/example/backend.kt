@@ -97,11 +97,21 @@ suspend fun main() {
 
     val backend: WorkflowBackend<Booking> = createWorkflowBackend(BookingFlow) {
 
-        with(BookingFlow.BookedStage) {
+        with(BookingFlow.SetupStage) {
             sendAccountActivationEmail handledBy SendAccountActivationEmail
             sendConfirmationEmail handledBy SendConfirmationEmail
-            setCustomerAddress handledBy SetCustomerAddress
             waitForCompletion handledBy CompleteAfter(2500)
+
+            transitToInput handledBy WorkflowBackend.TransitionHandler.WhenAllStepsAreCompleted()
+        }
+
+        with(BookingFlow.InputStage) {
+            setCustomerAddress handledBy SetCustomerAddress
+
+            transitToFinal handledBy WorkflowBackend.TransitionHandler.WhenAllStepsAreCompleted()
+        }
+
+        with(BookingFlow.FinalStage) {
             countForCompletion handledBy CountUntil(5)
         }
     }
@@ -119,31 +129,32 @@ suspend fun main() {
     println(result.data)
     println("------------------------------------------------------------------------------------------------")
 
-    result = engine.executeStep(
-        SubjectId(booking.id),
-        BookingFlow.BookedStage.setCustomerAddress,
-        AddressData(address = "Set from external! Yeah!"),
-    )
+    while (result.data.isNotCompleted(BookingFlow.FinalStage.id)) {
 
-    println(result.data)
-    println(codec.slumber(result.data))
-    println("------------------------------------------------------------------------------------------------")
+        if (BookingFlow.InputStage.id in result.data.activeStages) {
+            result = engine.executeStep(
+                SubjectId(booking.id),
+                BookingFlow.InputStage.setCustomerAddress,
+                AddressData(address = "Set from external! Yeah!"),
+            )
+        }
 
-    while (result.data.isNotCompleted(BookingFlow.BookedStage.id)) {
+        println("Active stages: ${result.data.activeStages.map { it.id }}")
 
-        val incomplete = result.data.getIncompleteSteps(BookingFlow.BookedStage.id)
+        val incomplete = result.data.getIncompleteSteps(BookingFlow.FinalStage.id)
 
         println(
             "Stage not yet completed: ${incomplete.map { "${it.id.id} -> ${it.state}" }}"
         )
 
-        println(codec.slumber(result.data))
+//        println(codec.slumber(result.data))
 
-        delay(500)
+        delay(750)
 
         result = engine.runAutomatic(SubjectId(booking.id))
     }
 
     println("------------------------------------------------------------------------------------------------")
     println(result.subject)
+    println(codec.slumber(result.data))
 }

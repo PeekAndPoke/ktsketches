@@ -18,23 +18,33 @@ object BookingFlow : WorkflowDescription<BookingFlow.Subject> {
 
     override val id = WorkflowId("thebase::booking-flow")
 
-    override val entryPoints get() = listOf(BookedStage.id)
+    override val entryPoints get() = setOf(SetupStage.id)
 
     override val stages
         get() = listOf<WorkflowDescription.Stage>(
-            BookedStage
+            SetupStage,
+            InputStage,
+            FinalStage,
         )
 
-    object BookedStage : WorkflowDescription.SimpleStage("Booked") {
+    object SetupStage : WorkflowDescription.SimpleStage("Setup") {
 
         val sendAccountActivationEmail = step("send-account-activation-email")
 
         val sendConfirmationEmail = step("send-confirmation-email")
 
-        val setCustomerAddress = step<AddressData>("set-customer-address")
-
         val waitForCompletion = step("wait-for-completion")
 
+        val transitToInput = transition("to-input-stage") { InputStage }
+    }
+
+    object InputStage : WorkflowDescription.SimpleStage("Input") {
+        val setCustomerAddress = step<AddressData>("set-customer-address")
+
+        val transitToFinal = transition("to-final-stage") { FinalStage }
+    }
+
+    object FinalStage : WorkflowDescription.SimpleStage("Final") {
         val countForCompletion = step("count-for-completion")
     }
 }
