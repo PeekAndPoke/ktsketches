@@ -122,7 +122,7 @@ suspend fun main() {
     result = engine.executeStep(
         SubjectId(booking.id),
         BookingFlow.BookedStage.setCustomerAddress,
-        AddressData(address = "Home"),
+        AddressData(address = "Set from external! Yeah!"),
     )
 
     println(result.data)
@@ -143,4 +143,7 @@ suspend fun main() {
 
         result = engine.runAutomatic(SubjectId(booking.id))
     }
+
+    println("------------------------------------------------------------------------------------------------")
+    println(result.subject)
 }

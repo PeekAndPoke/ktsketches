@@ -1,12 +1,11 @@
 package de.peekandpoke.ktorfx.upnext.backend
 
-import de.peekandpoke.ktorfx.upnext.shared.*
+import de.peekandpoke.ktorfx.upnext.shared.PersistentWorkflowData
+import de.peekandpoke.ktorfx.upnext.shared.SubjectId
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowDescription
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowState
 import de.peekandpoke.ultra.common.datetime.PortableDateTime
-import kotlinx.coroutines.runBlocking
 import java.time.Instant
-import kotlin.reflect.full.createType
-import kotlin.reflect.full.declaredMemberExtensionFunctions
-import kotlin.reflect.full.isSupertypeOf
 
 class WorkflowEngine<S>(
     val workflow: WorkflowBackend<S>,
@@ -18,124 +17,79 @@ class WorkflowEngine<S>(
         val data: PersistentWorkflowData<S>,
     )
 
-//    fun isStageCompleted(stageId: WorkflowStageId): Boolean {
-//        return getIncompleteSteps(stageId).isEmpty()
-//    }
-//
-//    fun getIncompleteSteps(stageId: WorkflowStageId): List<WorkflowData.StepData<S>> {
-//
-//        return when (val stage = workflow.stages.firstOrNull { it.id == stageId }) {
-//
-//            null -> emptyList()
-//
-//            else -> stage.steps
-//                .map { workflowData.getStage(stageId).getStep(it.id) }
-//                .filter { it.isNotCompleted() }
-//        }
-//    }
-
     fun runAutomatic(subjectId: SubjectId): Result<S> {
 
-        // TODO: catch error when subject cannot be loaded
-        val workflowData = dataRepo.loadOrInit(subjectId, workflow).toMutable()
+        return runFullCircle(subjectId) { data ->
 
-        val stages = workflow.stages.filter { it.id in workflowData.activeStages }
+            val stages = workflow.stages.filter { it.id in data.activeStages }
 
-        stages
-            // TODO: Unit-TEST that already completed tasks are no longer executed
-            .map { stage -> stage to workflowData.getStage(stage) }
-            .forEach { (stage, stageData) ->
+            stages
+                .map { stage -> stage to data.getStage(stage) }
+                // TODO: Unit-TEST for checking that all steps are initialized
+                .onEach { (stage, _) -> stage.ensureStepsAreInitialized(data) }
+                .forEach { (stage, stageData) ->
 
-                stage.steps
-                    .map { step -> step to stageData.getStep(step) }
-                    .filter { (_, stepData) -> stepData.isNotCompleted() }
-                    .onEach { (step, _) ->
-                        // IMPORTANT: When a stage is entered we need to ensure that every step gets a state!
-                        workflowData.getStage(stage).getStep(step).setStateIfUndefined(WorkflowState.Open)
-                    }
-                    .onEach { (step, _) ->
+                    stage.steps
+                        .map { step -> step to stageData.getStep(step) }
+                        // TODO: Unit-TEST that already completed tasks are no longer executed
+                        .filter { (_, stepData) -> stepData.isNotCompleted() }
+                        .onEach { (step, _) ->
 
-                        when (val handler = step.handler) {
-
-                            is WorkflowBackend.StepHandler.Automatic<S> -> {
-
-                                runBlocking {
-
-                                    WorkflowStepExecutor(
-                                        stage = stage,
-                                        step = step,
-                                        workflowData = workflowData
-                                    ).also { executor ->
-                                        handler.apply { executor.execute() }
-                                    }
+                            when (val handler = step.handler) {
+                                is WorkflowBackend.StepHandler.Automatic<S> -> {
+                                    WorkflowStepExecutor.runBlocking(stage, step, data, handler)
                                 }
                             }
                         }
-                    }
-            }
+                }
+        }
+    }
 
-        // TODO: unify this with 'executeStep'
+    fun <D : Any> executeStep(subjectId: SubjectId, step: WorkflowDescription.Step<D>, stepData: D): Result<S> {
+
+        return runFullCircle(subjectId) { workflowData ->
+
+            val found = workflow.stages
+                .flatMap { stage -> stage.steps.map { stage to it } }
+                .firstOrNull { it.second.id == step.id }
+
+            found
+                // TODO: Unit-TEST for checking that all steps are initialized
+                ?.also { (stage, _) -> stage.ensureStepsAreInitialized(workflowData) }
+                ?.let { (stage, step) ->
+
+                    when (val handler = step.handler) {
+                        is WorkflowBackend.StepHandler.Interactive<S, *> -> {
+                            WorkflowStepExecutor.runBlocking(stage, step, workflowData, handler, stepData)
+                        }
+
+                        else -> { /* do nothing */
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun runFullCircle(id: SubjectId, block: (data: MutableWorkflowData<S>) -> Unit): Result<S> {
+
+        // TODO: Catch error when the subject cannot be loaded
+        //       Add a comment on the workflow
+        //       Mark the entire workflow as failed
+        val workflowData = dataRepo.loadOrInit(id, workflow).toMutable()
+
+        block(workflowData)
+
         return Result(
             subject = workflowData.subject,
             data = workflowData.persist()
         )
     }
 
-    fun <D : Any> executeStep(subjectId: SubjectId, step: WorkflowDescription.Step<D>, stepData: D): Result<S> {
-
-        val workflowData = dataRepo.loadOrInit(subjectId, workflow).toMutable()
-
-        val found = workflow.stages
-            .flatMap { stage -> stage.steps.map { stage to it } }
-            .firstOrNull { it.second.id == step.id }
-
-        found?.let { (stage, step) ->
-
-            when (val handler = step.handler) {
-                is WorkflowBackend.StepHandler.Interactive<S, *> -> {
-
-                    // get the 'execute' method of the interactive handler
-                    val executeMethod = handler::class.declaredMemberExtensionFunctions.first { it.name == "execute" }
-                    // get the type of the stepData
-                    val stepDataType = stepData::class.createType()
-                    // 0. param: Instance parameter
-                    // 1. param: Receiver parameter
-                    // 2. param: The data param of the execute method.
-                    val dataParam = executeMethod.parameters[2]
-
-                    // Check if the given data can be used to call the execute method
-                    if (dataParam.type.isSupertypeOf(stepDataType)) {
-
-                        runBlocking {
-
-                            WorkflowStepExecutor(
-                                stage = stage,
-                                step = step,
-                                workflowData = workflowData
-                            ).also { executor ->
-                                @Suppress("UNCHECKED_CAST")
-                                (handler as WorkflowBackend.StepHandler.Interactive<S, Any>).apply {
-                                    executor.execute(stepData)
-                                }
-                            }
-                        }
-                    } else {
-                        // TODO: log some message
-                        println("ERROR: incompatible data of type '$stepDataType'")
-                    }
-
-                }
-
-                else -> { /* do nothing */
-                }
-            }
+    private fun WorkflowBackend.Stage<S>.ensureStepsAreInitialized(workflowData: MutableWorkflowData<S>) {
+        steps.forEach { step ->
+            // IMPORTANT: When a stage is entered we need to ensure that every step gets a state!
+            workflowData.getStage(this).getStep(step).setStateIfUndefined(WorkflowState.Open)
         }
-
-        // TODO: unify this with 'runAutomatic'
-        return Result(
-            subject = workflowData.subject,
-            data = workflowData.persist()
-        )
     }
 
     private fun PersistentWorkflowData<S>.toMutable(): MutableWorkflowData<S> = MutableWorkflowData(
