@@ -3,7 +3,6 @@ package de.peekandpoke.ktorfx.upnext.shared
 import de.peekandpoke.ktorfx.upnext.backend.WorkflowBackend
 import de.peekandpoke.ultra.common.datetime.PortableDateTime
 import kotlinx.serialization.SerialName
-import java.time.Instant
 
 interface WorkflowData<S> {
 
@@ -35,7 +34,7 @@ interface WorkflowData<S> {
     }
 
     interface StageData<S> {
-        val id: StageId
+        val id: WorkflowStageId
         val steps: Map<String, StepData<S>>
 
         fun getStep(step: WorkflowBackend.Step<S, *>): StepData<S>? = steps[step.idStr]
@@ -61,11 +60,28 @@ interface WorkflowData<S> {
         }
     }
 
-    val activeStages: List<StageId>
-
-    val createdAt: Instant
+    val activeStages: List<WorkflowStageId>
 
     val stages: Map<String, StageData<S>>
 
-    fun getStage(stage: WorkflowBackend.Stage<S>): StageData<S>? = stages[stage.idStr]
+    fun getStage(stageId: WorkflowStageId): StageData<S>? = stages[stageId.id]
+
+    fun getStage(stage: WorkflowBackend.Stage<S>): StageData<S>? = getStage(stageId = stage.id)
+
+    fun isCompleted(stageId: WorkflowStageId): Boolean {
+        return getIncompleteSteps(stageId).isEmpty()
+    }
+
+    fun isNotCompleted(stageId: WorkflowStageId): Boolean = !isCompleted(stageId)
+
+    fun getIncompleteSteps(stageId: WorkflowStageId): List<StepData<S>> {
+
+        val stage = getStage(stageId) ?: return emptyList()
+
+        return stage
+            .steps
+            .filterValues { it.isNotCompleted() }
+            .values
+            .toList()
+    }
 }

@@ -1,16 +1,14 @@
 package de.peekandpoke.ktorfx.upnext.example
 
-import de.peekandpoke.ktorfx.upnext.backend.WorkflowStepExecutor
-import de.peekandpoke.ktorfx.upnext.backend.WorkflowBackend
-import de.peekandpoke.ktorfx.upnext.backend.WorkflowEngine
-import de.peekandpoke.ktorfx.upnext.backend.createWorkflowBackend
-import de.peekandpoke.ktorfx.upnext.shared.PersistentWorkflowData
+import de.peekandpoke.ktorfx.upnext.backend.*
+import de.peekandpoke.ktorfx.upnext.shared.SubjectId
 import de.peekandpoke.ktorfx.upnext.shared.WorkflowData
 import de.peekandpoke.ultra.slumber.Codec
 import kotlinx.coroutines.delay
 import java.time.Instant
 
 data class Booking(
+    override val id: String,
     override val name: String,
     override val email: String,
     override val address: String,
@@ -86,10 +84,16 @@ suspend fun main() {
     val codec = Codec.default
 
     val booking = Booking(
+        id = "booking-001",
         name = "Sir Vival",
         email = "sirvival@example.com",
         address = ""
     )
+
+    val dataRepo = WorkflowDataRepository.InMemory<Booking>()
+
+    val subjectRepo = WorkflowSubjectRepository.InMemory<Booking> { SubjectId(it.id) }
+        .also { it.saveWorkflowSubject(booking) }
 
     val backend: WorkflowBackend<Booking> = createWorkflowBackend(BookingFlow) {
 
@@ -104,36 +108,39 @@ suspend fun main() {
 
     val engine: WorkflowEngine<Booking> = WorkflowEngine(
         workflow = backend,
-        subject = booking,
-        data = PersistentWorkflowData(activeStages = backend.entryPoints)
+        dataRepo = dataRepo,
+        subjectRepo = subjectRepo,
     )
 
-    engine.runAutomatic()
+    var result = engine.runAutomatic(
+        SubjectId(booking.id)
+    )
 
-    println(engine.workflowData)
+    println(result.data)
     println("------------------------------------------------------------------------------------------------")
 
-    engine.executeStep(
+    result = engine.executeStep(
+        SubjectId(booking.id),
         BookingFlow.BookedStage.setCustomerAddress,
         AddressData(address = "Home"),
     )
 
-    println(engine.workflowData)
-    println(codec.slumber(engine.workflowData.toPersistent()))
+    println(result.data)
+    println(codec.slumber(result.data))
     println("------------------------------------------------------------------------------------------------")
 
-    while (!engine.isStageCompleted(BookingFlow.BookedStage.id)) {
+    while (result.data.isNotCompleted(BookingFlow.BookedStage.id)) {
 
-        val incomplete = engine.getIncompleteSteps(BookingFlow.BookedStage.id)
+        val incomplete = result.data.getIncompleteSteps(BookingFlow.BookedStage.id)
 
         println(
             "Stage not yet completed: ${incomplete.map { "${it.id.id} -> ${it.state}" }}"
         )
 
-        println(codec.slumber(engine.workflowData.toPersistent()))
+        println(codec.slumber(result.data))
 
-        delay(2200)
+        delay(500)
 
-        engine.runAutomatic()
+        result = engine.runAutomatic(SubjectId(booking.id))
     }
 }

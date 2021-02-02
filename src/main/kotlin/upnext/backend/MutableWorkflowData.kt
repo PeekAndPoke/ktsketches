@@ -5,33 +5,19 @@ import java.time.Instant
 
 
 class MutableWorkflowData<S>(
-    override val activeStages: MutableList<StageId>,
-    override val createdAt: Instant,
+    subject: S,
+    override val activeStages: MutableList<WorkflowStageId>,
+    val createdAt: Instant,
     override val stages: MutableMap<String, MutableStageData<S>>,
 ) : WorkflowData<S> {
 
-    companion object {
-        fun <S> of(src: WorkflowData<S>): MutableWorkflowData<S> = MutableWorkflowData(
-            activeStages = src.activeStages.toMutableList(),
-            createdAt = src.createdAt,
-            stages = src.stages.mapValues { (_, stage) ->
-                MutableStageData(
-                    id = stage.id,
-                    steps = stage.steps.mapValues { (_, step) ->
-                        MutableStepData<S>(
-                            id = step.id,
-                            state = step.state,
-                            data = step.data.toMutableMap(),
-                            logs = step.logs.toMutableList(),
-                        )
-                    }.toMutableMap()
-                )
-            }.toMutableMap()
-        )
-    }
+    val initialSubject: S = subject
+
+    var subject: S = subject
+        internal set
 
     class MutableStageData<S>(
-        override val id: StageId,
+        override val id: WorkflowStageId,
         override val steps: MutableMap<String, MutableStepData<S>>
     ) : WorkflowData.StageData<S> {
 
@@ -61,6 +47,12 @@ class MutableWorkflowData<S>(
             this.state = state
         }
 
+        fun setStateIfUndefined(state: WorkflowState) {
+            if (this.state == WorkflowState.Undefined) {
+                setState(state)
+            }
+        }
+
         fun <T : Any> setValue(key: WorkflowData.Value<T>, value: T) {
             data[key.name] = value
         }
@@ -70,7 +62,7 @@ class MutableWorkflowData<S>(
         }
     }
 
-    fun getStage(stageId: StageId): MutableStageData<S> = stages.getOrPut(stageId.id) {
+    override fun getStage(stageId: WorkflowStageId): MutableStageData<S> = stages.getOrPut(stageId.id) {
         MutableStageData(
             id = stageId,
             steps = mutableMapOf()
@@ -78,23 +70,5 @@ class MutableWorkflowData<S>(
     }
 
     override fun getStage(stage: WorkflowBackend.Stage<S>): MutableStageData<S> = getStage(stage.id)
-
-    fun toPersistent(): PersistentWorkflowData<S> = PersistentWorkflowData(
-        activeStages = activeStages.toList(),
-        createdAt = createdAt,
-        stages = stages.mapValues { (_, stage) ->
-            PersistentWorkflowData.PersistentStageData(
-                id = stage.id,
-                steps = stage.steps.mapValues { (_, step) ->
-                    PersistentWorkflowData.PersistentStepData(
-                        id = step.id,
-                        state = step.state,
-                        data = step.data.toMap(),
-                        logs = step.logs.toList(),
-                    )
-                }
-            )
-        },
-    )
 }
 

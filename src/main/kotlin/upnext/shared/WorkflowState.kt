@@ -8,9 +8,9 @@ sealed class WorkflowState {
 
     // NON-Final states ////////////////////////////////////////////
 
-    @SerialName("open")
+    @SerialName("undefined")
     object Undefined : WorkflowState() {
-        override fun toString() = "open"
+        override fun toString() = "undefined"
     }
 
     @SerialName("open")

@@ -10,6 +10,7 @@ data class AddressData(
 object BookingFlow : WorkflowDescription<BookingFlow.Subject> {
 
     interface Subject {
+        val id: String
         val name: String
         val email: String
         val address: String

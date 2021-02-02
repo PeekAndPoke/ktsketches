@@ -3,10 +3,10 @@ package de.peekandpoke.ktorfx.upnext.shared
 interface WorkflowDescription<S> {
     val id: WorkflowId
     val stages: List<Stage>
-    val entryPoints: List<StageId>
+    val entryPoints: List<WorkflowStageId>
 
     interface Stage {
-        val id: StageId
+        val id: WorkflowStageId
         val steps: List<Step<*>>
     }
 
@@ -16,7 +16,7 @@ interface WorkflowDescription<S> {
 
     abstract class SimpleStage(id: String) : Stage {
 
-        final override val id: StageId = StageId(id)
+        final override val id: WorkflowStageId = WorkflowStageId(id)
 
         final override val steps: List<Step<*>> get() = _steps
 

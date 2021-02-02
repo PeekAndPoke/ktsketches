@@ -10,16 +10,14 @@ import kotlin.math.min
 class WorkflowStepExecutor<S>(
     val stage: WorkflowBackend.Stage<S>,
     val step: WorkflowBackend.Step<S, *>,
-    subject: S,
     val workflowData: MutableWorkflowData<S>,
 ) {
-    var subject: S = subject
-        private set
+    val subject get() = workflowData.subject
 
-    val stageData: MutableWorkflowData.MutableStageData<S>
+    private val stageData: MutableWorkflowData.MutableStageData<S>
         get() = workflowData.getStage(stage)
 
-    val stepData: MutableWorkflowData.MutableStepData<S>
+    private val stepData: MutableWorkflowData.MutableStepData<S>
         get() = stageData.getStep(step)
 
     fun setState(state: WorkflowState) {
@@ -57,8 +55,11 @@ class WorkflowStepExecutor<S>(
         }
     }
 
+    /**
+     * Applies a modification in the subject
+     */
     fun modifySubject(block: (S) -> S) {
-        subject = block(subject)
+        workflowData.subject = block(workflowData.subject)
     }
 
     /**

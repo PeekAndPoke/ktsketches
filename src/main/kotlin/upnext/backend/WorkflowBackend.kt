@@ -1,16 +1,14 @@
 package de.peekandpoke.ktorfx.upnext.backend
 
-import de.peekandpoke.ktorfx.upnext.shared.StageId
-import de.peekandpoke.ktorfx.upnext.shared.WorkflowDescription
-import de.peekandpoke.ktorfx.upnext.shared.WorkflowId
+import de.peekandpoke.ktorfx.upnext.shared.*
 
 class WorkflowBackend<S>(
     val id: WorkflowId,
-    val entryPoints: List<StageId>,
+    val entryPoints: List<WorkflowStageId>,
     val stages: List<Stage<S>>,
 ) {
     class Stage<S>(
-        val id: StageId,
+        val id: WorkflowStageId,
         val steps: List<Step<S, *>>,
     ) {
         val idStr get() = id.id
@@ -37,4 +35,5 @@ class WorkflowBackend<S>(
             abstract suspend fun WorkflowStepExecutor<S>.execute(data: D)
         }
     }
+
 }

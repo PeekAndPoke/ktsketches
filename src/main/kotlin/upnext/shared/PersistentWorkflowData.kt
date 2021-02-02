@@ -1,15 +1,17 @@
 package de.peekandpoke.ktorfx.upnext.shared
 
+import de.peekandpoke.ultra.common.datetime.PortableDateTime
 import java.time.Instant
 
 data class PersistentWorkflowData<S>(
-    override val activeStages: List<StageId>,
-    override val createdAt: Instant = Instant.now(),
+    val subjectId: SubjectId,
+    val createdAt: PortableDateTime = PortableDateTime(Instant.now().toEpochMilli()),
+    override val activeStages: List<WorkflowStageId>,
     override val stages: Map<String, PersistentStageData<S>> = emptyMap(),
 ) : WorkflowData<S> {
 
     data class PersistentStageData<S>(
-        override val id: StageId,
+        override val id: WorkflowStageId,
         override val steps: Map<String, PersistentStepData<S>>
     ) : WorkflowData.StageData<S>
 
