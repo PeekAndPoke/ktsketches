@@ -13,7 +13,7 @@ interface WorkflowDescription<S> {
 
     interface StageTransition {
         val id: StageTransitionId
-        val target: StageId
+        val targets: Set<StageId>
     }
 
     interface Step<D> {
@@ -39,8 +39,8 @@ interface WorkflowDescription<S> {
             return SimpleStep<D>(id = id.stepId(stepId)).also { _steps.add(it) }
         }
 
-        fun transition(transitionId: String, provider: () -> Stage): StageTransition {
-            return SimpleStageTransition(id = id.transitionId(transitionId)) { provider().id }
+        fun transition(transitionId: String, provider: () -> Set<Stage>): StageTransition {
+            return SimpleStageTransition(id = id.transitionId(transitionId)) { provider().map { it.id }.toSet() }
                 .also { _transitions.add(it) }
         }
     }
@@ -51,9 +51,9 @@ interface WorkflowDescription<S> {
 
     data class SimpleStageTransition(
         override val id: StageTransitionId,
-        val provider: () -> StageId,
+        val provider: () -> Set<StageId>,
     ) : StageTransition {
-        override val target: StageId
+        override val targets: Set<StageId>
             get() = provider()
     }
 }

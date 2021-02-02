@@ -1,9 +1,10 @@
 package de.peekandpoke.ktorfx.upnext.backend
 
+import de.peekandpoke.ktorfx.upnext.shared.StepState
 import de.peekandpoke.ktorfx.upnext.shared.WorkflowData
-import de.peekandpoke.ktorfx.upnext.shared.WorkflowState
 import de.peekandpoke.ultra.common.datetime.PortableDateTime
 import kotlinx.coroutines.runBlocking
+import upnext.shared.WorkflowLogEntry
 import java.time.Instant
 import kotlin.math.max
 import kotlin.math.min
@@ -83,25 +84,25 @@ class WorkflowStepExecutor<S>(
     private val stepData: MutableWorkflowData.MutableStepData<S>
         get() = stageData.getStep(step)
 
-    fun setState(state: WorkflowState) {
+    fun setState(state: StepState) {
         stepData.apply {
             setState(state)
             addLog(logEntry(state = state))
         }
     }
 
-    fun markAsOpen(): Unit = setState(WorkflowState.Open)
+    fun markAsOpen(): Unit = setState(StepState.Open)
 
     fun markProgress(current: Number, target: Number): Unit =
         markProgress(current.toDouble() / target.toDouble())
 
-    fun markProgress(progress: Double): Unit = setState(WorkflowState.Progress(max(0.0, min(progress, 1.0))))
+    fun markProgress(progress: Double): Unit = setState(StepState.Progress(max(0.0, min(progress, 1.0))))
 
-    fun markAsDone(): Unit = setState(WorkflowState.Done)
+    fun markAsDone(): Unit = setState(StepState.Done)
 
-    fun markAsSkipped(): Unit = setState(WorkflowState.Skipped)
+    fun markAsSkipped(): Unit = setState(StepState.Skipped)
 
-    fun markAsFailed(): Unit = setState(WorkflowState.Failed)
+    fun markAsFailed(): Unit = setState(StepState.Failed)
 
     fun <T : Any> WorkflowData.Value<T>.modify(modify: (T) -> T): T = set(modify(get()))
 
@@ -130,15 +131,15 @@ class WorkflowStepExecutor<S>(
      */
     fun comment(comment: String) {
         stepData.addLog(
-            WorkflowData.LogEntry.Comment(ts = now(), comment = comment)
+            WorkflowLogEntry.Comment(ts = now(), comment = comment)
         )
     }
 
-    private fun logEntry(state: WorkflowState) =
-        WorkflowData.LogEntry.StateChange(ts = now(), state = state)
+    private fun logEntry(state: StepState) =
+        WorkflowLogEntry.StateChange(ts = now(), state = state)
 
     private fun <T : Any> logEntry(key: WorkflowData.Value<T>, value: T) =
-        WorkflowData.LogEntry.ValueChange(ts = now(), key = key.name, value = value.toString())
+        WorkflowLogEntry.ValueChange(ts = now(), key = key.name, value = value.toString())
 
     private fun now() = PortableDateTime(Instant.now().toEpochMilli())
 }

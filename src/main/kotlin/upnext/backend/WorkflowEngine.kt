@@ -87,11 +87,14 @@ class WorkflowEngine<S>(
         applicable
             .onEach { transition ->
                 data.removeActiveStage(stage.id)
-                data.addActiveStage(transition.description.target)
+                transition.description.targets.forEach { target ->
+                    data.addActiveStage(target)
+                }
             }
-            .onEach {
-                println("Applied transitions to ${it.description.target}")
-            }
+
+        if (data.areAllStagesCompleted()) {
+            data.setState(WorkflowState.Completed)
+        }
     }
 
     private fun MutableWorkflowData<S>.ensureIsInitialized() {
@@ -104,7 +107,7 @@ class WorkflowEngine<S>(
                 stage.steps.forEach { step ->
                     // ensure that every step is initialized in the data
                     stageData.getStep(step).apply {
-                        setStateIfUndefined(WorkflowState.Undefined)
+                        setStateIfUndefined(StepState.Undefined)
                     }
                 }
             }
@@ -115,6 +118,8 @@ class WorkflowEngine<S>(
         subject = subjectRepo.loadWorkflowSubject(subjectId)
         // TODO: use a specific exception here (CouldNotLoadWorkflowSubject)
             ?: error("Workflow subject '${subjectId.id}' was not found"),
+        workflowId = workflowId,
+        state = state,
         activeStages = activeStages.toMutableSet(),
         createdAt = Instant.ofEpochMilli(createdAt.timestamp),
         stages = stages.mapValues { (_, stage) ->
@@ -127,7 +132,7 @@ class WorkflowEngine<S>(
                         data = step.data.toMutableMap(),
                         logs = step.logs.toMutableList(),
                     )
-                }.toMutableMap()
+                }.toMutableMap(),
             )
         }.toMutableMap()
     )
@@ -139,6 +144,8 @@ class WorkflowEngine<S>(
 
         // Create persistent workflow data
         val persistent = PersistentWorkflowData<S>(
+            workflowId = workflowId,
+            state = state,
             subjectId = savedSubjectId,
             activeStages = activeStages.toSet(),
             createdAt = PortableDateTime(createdAt.toEpochMilli()),
@@ -152,7 +159,7 @@ class WorkflowEngine<S>(
                             data = step.data.toMap(),
                             logs = step.logs.toList(),
                         )
-                    }
+                    },
                 )
             },
         )

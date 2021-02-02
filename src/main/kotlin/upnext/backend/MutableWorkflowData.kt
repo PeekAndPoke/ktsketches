@@ -1,33 +1,28 @@
 package de.peekandpoke.ktorfx.upnext.backend
 
-import de.peekandpoke.ktorfx.upnext.shared.StageId
-import de.peekandpoke.ktorfx.upnext.shared.StepId
-import de.peekandpoke.ktorfx.upnext.shared.WorkflowData
-import de.peekandpoke.ktorfx.upnext.shared.WorkflowState
+import de.peekandpoke.ktorfx.upnext.shared.*
+import upnext.shared.WorkflowLogEntry
 import java.time.Instant
 
 
 class MutableWorkflowData<S>(
     subject: S,
-    override val activeStages: MutableSet<StageId>,
+    state: WorkflowState,
     val createdAt: Instant,
+    override val workflowId: WorkflowId,
+    override val activeStages: MutableSet<StageId>,
     override val stages: MutableMap<String, MutableStageData<S>>,
 ) : WorkflowData<S> {
 
-    val initialSubject: S = subject
-
-    var subject: S = subject
-        internal set
-
     class MutableStageData<S>(
         override val id: StageId,
-        override val steps: MutableMap<String, MutableStepData<S>>
+        override val steps: MutableMap<String, MutableStepData<S>>,
     ) : WorkflowData.StageData<S> {
 
         fun getStep(stepId: StepId): MutableStepData<S> = steps.getOrPut(stepId.id) {
             MutableStepData(
                 id = stepId,
-                state = WorkflowState.Undefined,
+                state = StepState.Undefined,
                 data = mutableMapOf(),
                 logs = mutableListOf(),
             )
@@ -38,20 +33,20 @@ class MutableWorkflowData<S>(
 
     class MutableStepData<S>(
         override val id: StepId,
-        state: WorkflowState,
+        state: StepState,
         override val data: MutableMap<String, Any>,
-        override val logs: MutableList<WorkflowData.LogEntry>,
+        override val logs: MutableList<WorkflowLogEntry>,
     ) : WorkflowData.StepData<S> {
 
-        override var state: WorkflowState = state
+        override var state: StepState = state
             private set
 
-        fun setState(state: WorkflowState) {
+        fun setState(state: StepState) {
             this.state = state
         }
 
-        fun setStateIfUndefined(state: WorkflowState) {
-            if (this.state == WorkflowState.Undefined) {
+        fun setStateIfUndefined(state: StepState) {
+            if (this.state == StepState.Undefined) {
                 setState(state)
             }
         }
@@ -60,10 +55,18 @@ class MutableWorkflowData<S>(
             data[key.name] = value
         }
 
-        fun addLog(entry: WorkflowData.LogEntry) {
+        fun addLog(entry: WorkflowLogEntry) {
             logs.add(entry)
         }
     }
+
+    val initialSubject: S = subject
+
+    var subject: S = subject
+        internal set
+
+    override var state: WorkflowState = state
+        private set
 
     fun removeActiveStage(stageId: StageId) {
         activeStages.remove(stageId)
@@ -73,10 +76,14 @@ class MutableWorkflowData<S>(
         activeStages.add(stageId)
     }
 
+    fun setState(newState: WorkflowState) {
+        this.state = newState
+    }
+
     override fun getStage(stageId: StageId): MutableStageData<S> = stages.getOrPut(stageId.id) {
         MutableStageData(
             id = stageId,
-            steps = mutableMapOf()
+            steps = mutableMapOf(),
         )
     }
 

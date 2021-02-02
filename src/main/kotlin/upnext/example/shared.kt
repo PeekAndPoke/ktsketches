@@ -35,13 +35,13 @@ object BookingFlow : WorkflowDescription<BookingFlow.Subject> {
 
         val waitForCompletion = step("wait-for-completion")
 
-        val transitToInput = transition("to-input-stage") { InputStage }
+        val transitToInput = transition("to-input-stage") { setOf(InputStage) }
     }
 
     object InputStage : WorkflowDescription.SimpleStage("Input") {
         val setCustomerAddress = step<AddressData>("set-customer-address")
 
-        val transitToFinal = transition("to-final-stage") { FinalStage }
+        val transitToFinal = transition("to-final-stage") { setOf(FinalStage) }
     }
 
     object FinalStage : WorkflowDescription.SimpleStage("Final") {

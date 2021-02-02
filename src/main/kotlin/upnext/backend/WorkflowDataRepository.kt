@@ -1,8 +1,8 @@
 package de.peekandpoke.ktorfx.upnext.backend
 
-import com.sun.corba.se.spi.orbutil.threadpool.Work
 import de.peekandpoke.ktorfx.upnext.shared.PersistentWorkflowData
 import de.peekandpoke.ktorfx.upnext.shared.SubjectId
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowState
 
 interface WorkflowDataRepository<S> {
 
@@ -28,8 +28,12 @@ interface WorkflowDataRepository<S> {
         private val entries = mutableMapOf<SubjectId, PersistentWorkflowData<S>>()
 
         override fun initialize(id: SubjectId, workflow: WorkflowBackend<S>): PersistentWorkflowData<S> {
-            return PersistentWorkflowData<S>(subjectId = id, activeStages = workflow.entryPoints)
-                .also { save(it) }
+            return PersistentWorkflowData<S>(
+                subjectId = id,
+                workflowId = workflow.id,
+                state = WorkflowState.Open,
+                activeStages = workflow.entryPoints,
+            ).also { save(it) }
         }
 
         override fun load(id: SubjectId): PersistentWorkflowData<S>? {

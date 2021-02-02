@@ -129,7 +129,9 @@ suspend fun main() {
     println(result.data)
     println("------------------------------------------------------------------------------------------------")
 
-    while (result.data.isNotCompleted(BookingFlow.FinalStage.id)) {
+    while (result.data.areNotAllStagesCompleted()) {
+
+        result = engine.runAutomatic(SubjectId(booking.id))
 
         if (BookingFlow.InputStage.id in result.data.activeStages) {
             result = engine.executeStep(
@@ -139,19 +141,13 @@ suspend fun main() {
             )
         }
 
-        println("Active stages: ${result.data.activeStages.map { it.id }}")
-
-        val incomplete = result.data.getIncompleteSteps(BookingFlow.FinalStage.id)
-
-        println(
-            "Stage not yet completed: ${incomplete.map { "${it.id.id} -> ${it.state}" }}"
-        )
-
-//        println(codec.slumber(result.data))
-
         delay(750)
 
-        result = engine.runAutomatic(SubjectId(booking.id))
+        println("Active stages: ${result.data.activeStages.map { it.id }}")
+
+        val openStages = result.data.getIncompleteStages()
+
+        println("Incomplete stages: ${openStages.map { it.id.id }}")
     }
 
     println("------------------------------------------------------------------------------------------------")

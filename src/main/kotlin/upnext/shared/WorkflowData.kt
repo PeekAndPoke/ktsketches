@@ -1,36 +1,12 @@
 package de.peekandpoke.ktorfx.upnext.shared
 
 import de.peekandpoke.ktorfx.upnext.backend.WorkflowBackend
-import de.peekandpoke.ultra.common.datetime.PortableDateTime
-import kotlinx.serialization.SerialName
+import upnext.shared.WorkflowLogEntry
 
 interface WorkflowData<S> {
 
     data class Value<T : Any>(val name: String, val default: T) {
         override fun toString() = name
-    }
-
-    sealed class LogEntry {
-        abstract val ts: PortableDateTime
-
-        @SerialName("state-change")
-        data class StateChange(
-            override val ts: PortableDateTime,
-            val state: WorkflowState
-        ) : LogEntry()
-
-        @SerialName("value-change")
-        data class ValueChange(
-            override val ts: PortableDateTime,
-            val key: String,
-            val value: String,
-        ) : LogEntry()
-
-        @SerialName("comment")
-        data class Comment(
-            override val ts: PortableDateTime,
-            val comment: String,
-        ) : LogEntry()
     }
 
     interface StageData<S> {
@@ -42,11 +18,11 @@ interface WorkflowData<S> {
 
     interface StepData<S> {
         val id: StepId
-        val state: WorkflowState
+        val state: StepState
         val data: Map<String, Any>
-        val logs: List<LogEntry>
+        val logs: List<WorkflowLogEntry>
 
-        fun isCompleted(): Boolean = state is WorkflowState.FinalState
+        fun isCompleted(): Boolean = state is StepState.FinalState
 
         fun isNotCompleted(): Boolean = !isCompleted()
 
@@ -60,20 +36,58 @@ interface WorkflowData<S> {
         }
     }
 
+    val workflowId: WorkflowId
+
+    val state: WorkflowState
+
     val activeStages: Set<StageId>
 
     val stages: Map<String, StageData<S>>
 
+    /**
+     * Returns true when the whole workflow is completed
+     */
+    fun areAllStagesCompleted(): Boolean = getIncompleteStages().isEmpty()
+
+    /**
+     * Returns false when the whole workflow is completed
+     */
+    fun areNotAllStagesCompleted(): Boolean = !areAllStagesCompleted()
+
+    /**
+     * Returns a list of all incomplete stages
+     */
+    fun getIncompleteStages(): List<StageData<S>> {
+        return stages
+            .map { (_, stage) -> stage }
+            .filter { stage -> areNotAllStepsCompleted(stage.id) }
+    }
+
+    /**
+     * Gets the [StageData] for the given [stageId]
+     */
     fun getStage(stageId: StageId): StageData<S>? = stages[stageId.id]
 
+    /**
+     * Gets the [StageData] for the given [stage]
+     */
     fun getStage(stage: WorkflowBackend.Stage<S>): StageData<S>? = getStage(stageId = stage.id)
 
-    fun isCompleted(stageId: StageId): Boolean {
+    /**
+     * Return true when the stage with the given [stageId] is completed
+     */
+    fun areAllStepsCompleted(stageId: StageId): Boolean {
         return getIncompleteSteps(stageId).isEmpty()
     }
 
-    fun isNotCompleted(stageId: StageId): Boolean = !isCompleted(stageId)
+    /**
+     * Return false when the stage with the given [stageId] is completed
+     */
+    fun areNotAllStepsCompleted(stageId: StageId): Boolean = !areAllStepsCompleted(stageId)
 
+    /**
+     * Return a list of all stages that are not yet completed
+     */
     fun getIncompleteSteps(stageId: StageId): List<StepData<S>> {
 
         val stage = getStage(stageId) ?: return emptyList()
