@@ -1,7 +1,7 @@
-package de.peekandpoke.kraft.dev.proceed.example
+package de.peekandpoke.ktorfx.upnext.example
 
-import de.peekandpoke.kraft.dev.proceed.shared.WorkflowDescription
-import de.peekandpoke.kraft.dev.proceed.shared.WorkflowId
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowDescription
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowId
 
 data class AddressData(
     val address: String
@@ -17,13 +17,14 @@ object BookingFlow : WorkflowDescription<BookingFlow.Subject> {
 
     override val id = WorkflowId("thebase::booking-flow")
 
-    override val entry get() = BookedStage.id
+    override val entryPoints get() = listOf(BookedStage.id)
 
-    override val stages get() = listOf<WorkflowDescription.Stage>(
-        BookedStage
-    )
+    override val stages
+        get() = listOf<WorkflowDescription.Stage>(
+            BookedStage
+        )
 
-    object BookedStage: WorkflowDescription.SimpleStage("Booked") {
+    object BookedStage : WorkflowDescription.SimpleStage("Booked") {
 
         val sendAccountActivationEmail = step("send-account-activation-email")
 

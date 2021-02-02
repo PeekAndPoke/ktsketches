@@ -1,8 +1,11 @@
-package de.peekandpoke.kraft.dev.proceed.example
+package de.peekandpoke.ktorfx.upnext.example
 
-import de.peekandpoke.kraft.dev.proceed.*
-import de.peekandpoke.kraft.dev.proceed.shared.PersistentWorkflowData
-import de.peekandpoke.kraft.dev.proceed.shared.WorkflowData
+import de.peekandpoke.ktorfx.upnext.backend.WorkflowStepExecutor
+import de.peekandpoke.ktorfx.upnext.backend.WorkflowBackend
+import de.peekandpoke.ktorfx.upnext.backend.WorkflowEngine
+import de.peekandpoke.ktorfx.upnext.backend.createWorkflowBackend
+import de.peekandpoke.ktorfx.upnext.shared.PersistentWorkflowData
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowData
 import de.peekandpoke.ultra.slumber.Codec
 import kotlinx.coroutines.delay
 import java.time.Instant
@@ -15,7 +18,7 @@ data class Booking(
 
 object SendAccountActivationEmail : WorkflowBackend.StepHandler.Automatic<Booking>() {
 
-    override suspend fun StepExecutor<Booking>.execute() {
+    override suspend fun WorkflowStepExecutor<Booking>.execute() {
         println("sending account activation email to ${subject.email}")
         comment("sending account activation email to ${subject.email}")
 
@@ -25,7 +28,7 @@ object SendAccountActivationEmail : WorkflowBackend.StepHandler.Automatic<Bookin
 
 object SendConfirmationEmail : WorkflowBackend.StepHandler.Automatic<Booking>() {
 
-    override suspend fun StepExecutor<Booking>.execute() {
+    override suspend fun WorkflowStepExecutor<Booking>.execute() {
         println("sending reservation confirmation email to ${subject.email}")
         comment("sending reservation confirmation email to ${subject.email}")
 
@@ -35,7 +38,7 @@ object SendConfirmationEmail : WorkflowBackend.StepHandler.Automatic<Booking>() 
 
 object SetCustomerAddress : WorkflowBackend.StepHandler.Interactive<Booking, AddressData>() {
 
-    override suspend fun StepExecutor<Booking>.execute(data: AddressData) {
+    override suspend fun WorkflowStepExecutor<Booking>.execute(data: AddressData) {
         println("Executing interactive step with data: $data")
         comment("Executing interactive step with data: $data")
 
@@ -49,7 +52,7 @@ object SetCustomerAddress : WorkflowBackend.StepHandler.Interactive<Booking, Add
 
 class CompleteAfter(private val millis: Long) : WorkflowBackend.StepHandler.Automatic<Booking>() {
 
-    override suspend fun StepExecutor<Booking>.execute() {
+    override suspend fun WorkflowStepExecutor<Booking>.execute() {
 
         val deadline = workflowData.createdAt.plusMillis(millis)
 
@@ -63,7 +66,7 @@ class CountUntil(private val target: Int) : WorkflowBackend.StepHandler.Automati
 
     private val counter = WorkflowData.Value("counter", 0)
 
-    override suspend fun StepExecutor<Booking>.execute() {
+    override suspend fun WorkflowStepExecutor<Booking>.execute() {
 
         val state = counter.modify { it + 1 }
 
@@ -102,7 +105,7 @@ suspend fun main() {
     val engine: WorkflowEngine<Booking> = WorkflowEngine(
         workflow = backend,
         subject = booking,
-        data = PersistentWorkflowData(currentStage = backend.entry)
+        data = PersistentWorkflowData(activeStages = backend.entryPoints)
     )
 
     engine.runAutomatic()
@@ -124,12 +127,12 @@ suspend fun main() {
         val incomplete = engine.getIncompleteSteps(BookingFlow.BookedStage.id)
 
         println(
-            "Stage not yet completed: ${incomplete.map { "${it.id} -> ${it.state}" }}"
+            "Stage not yet completed: ${incomplete.map { "${it.id.id} -> ${it.state}" }}"
         )
 
         println(codec.slumber(engine.workflowData.toPersistent()))
 
-        delay(1000)
+        delay(2200)
 
         engine.runAutomatic()
     }

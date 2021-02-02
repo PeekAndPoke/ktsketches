@@ -1,4 +1,4 @@
-package de.peekandpoke.kraft.dev.proceed.shared
+package de.peekandpoke.ktorfx.upnext.shared
 
 import kotlinx.serialization.SerialName
 

@@ -1,9 +1,9 @@
-package de.peekandpoke.kraft.dev.proceed.shared
+package de.peekandpoke.ktorfx.upnext.shared
 
 interface WorkflowDescription<S> {
     val id: WorkflowId
     val stages: List<Stage>
-    val entry: StageId
+    val entryPoints: List<StageId>
 
     interface Stage {
         val id: StageId

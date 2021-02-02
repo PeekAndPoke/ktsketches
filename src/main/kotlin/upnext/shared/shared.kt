@@ -1,4 +1,4 @@
-package de.peekandpoke.kraft.dev.proceed.shared
+package de.peekandpoke.ktorfx.upnext.shared
 
 data class WorkflowId(val id: String)
 

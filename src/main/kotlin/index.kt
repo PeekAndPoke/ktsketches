@@ -1,4 +1,4 @@
-package de.peekandpoke.kraft.dev
+package de.peekandpoke.ktorfx
 
 fun main() {
 

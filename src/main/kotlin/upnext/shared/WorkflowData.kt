@@ -1,6 +1,6 @@
-package de.peekandpoke.kraft.dev.proceed.shared
+package de.peekandpoke.ktorfx.upnext.shared
 
-import de.peekandpoke.kraft.dev.proceed.WorkflowBackend
+import de.peekandpoke.ktorfx.upnext.backend.WorkflowBackend
 import de.peekandpoke.ultra.common.datetime.PortableDateTime
 import kotlinx.serialization.SerialName
 import java.time.Instant
@@ -61,8 +61,7 @@ interface WorkflowData<S> {
         }
     }
 
-
-    val currentStage: StageId
+    val activeStages: List<StageId>
 
     val createdAt: Instant
 

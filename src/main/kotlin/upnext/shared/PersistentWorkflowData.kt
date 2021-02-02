@@ -1,9 +1,9 @@
-package de.peekandpoke.kraft.dev.proceed.shared
+package de.peekandpoke.ktorfx.upnext.shared
 
 import java.time.Instant
 
 data class PersistentWorkflowData<S>(
-    override val currentStage: StageId,
+    override val activeStages: List<StageId>,
     override val createdAt: Instant = Instant.now(),
     override val stages: Map<String, PersistentStageData<S>> = emptyMap(),
 ) : WorkflowData<S> {
