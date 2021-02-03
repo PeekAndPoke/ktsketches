@@ -2,17 +2,14 @@ package de.peekandpoke.ktorfx.upnext.backend
 
 import de.peekandpoke.ktorfx.upnext.shared.PersistentWorkflowData
 import de.peekandpoke.ktorfx.upnext.shared.SubjectId
+import de.peekandpoke.ktorfx.upnext.shared.WorkflowData
 import de.peekandpoke.ktorfx.upnext.shared.WorkflowState
 
 interface WorkflowDataRepository<S> {
 
     fun initialize(id: SubjectId, workflow: WorkflowBackend<S>): PersistentWorkflowData<S>
 
-    fun load(id: SubjectId): PersistentWorkflowData<S>?
-
-    fun loadOrInit(id: SubjectId, workflow: WorkflowBackend<S>): PersistentWorkflowData<S> {
-        return load(id) ?: initialize(id, workflow)
-    }
+    fun load(id: WorkflowData.Id): PersistentWorkflowData<S>?
 
     fun save(data: PersistentWorkflowData<S>)
 
@@ -25,10 +22,11 @@ interface WorkflowDataRepository<S> {
      */
     class InMemory<S> : WorkflowDataRepository<S> {
 
-        private val entries = mutableMapOf<SubjectId, PersistentWorkflowData<S>>()
+        private val entries = mutableMapOf<WorkflowData.Id, PersistentWorkflowData<S>>()
 
         override fun initialize(id: SubjectId, workflow: WorkflowBackend<S>): PersistentWorkflowData<S> {
             return PersistentWorkflowData<S>(
+                dataId = WorkflowData.Id("in-memory-${entries.size + 1}"),
                 subjectId = id,
                 workflowId = workflow.id,
                 state = WorkflowState.Open,
@@ -36,12 +34,12 @@ interface WorkflowDataRepository<S> {
             ).also { save(it) }
         }
 
-        override fun load(id: SubjectId): PersistentWorkflowData<S>? {
+        override fun load(id: WorkflowData.Id): PersistentWorkflowData<S>? {
             return entries[id]
         }
 
         override fun save(data: PersistentWorkflowData<S>) {
-            entries[data.subjectId] = data
+            entries[data.dataId] = data
         }
     }
 }

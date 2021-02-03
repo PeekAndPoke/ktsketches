@@ -5,11 +5,19 @@ import upnext.shared.WorkflowLogEntry
 import java.time.Instant
 
 data class PersistentWorkflowData<S>(
+    /** The id of this workflow data */
+    override val dataId: WorkflowData.Id,
+    /** The id of data [S] that the workflow is working on */
     val subjectId: SubjectId,
+    /** The creation date of the workflow */
     val createdAt: PortableDateTime = PortableDateTime(Instant.now().toEpochMilli()),
+    /** The id of the associated workflow */
     override val workflowId: WorkflowId,
+    /** The state of the workflow */
     override val state: WorkflowState,
+    /** The currently active stages of the workflow */
     override val activeStages: Set<StageId>,
+    /** All stages of the workflow */
     override val stages: Map<String, PersistentStageData<S>> = emptyMap(),
 ) : WorkflowData<S> {
 

@@ -5,6 +5,11 @@ import upnext.shared.WorkflowLogEntry
 
 interface WorkflowData<S> {
 
+    /**
+     * Id of a workflow data
+     */
+    data class Id(val id: String)
+
     data class Value<T : Any>(val name: String, val default: T) {
         override fun toString() = name
     }
@@ -36,13 +41,30 @@ interface WorkflowData<S> {
         }
     }
 
+    /** The id of this workflow data */
+    val dataId: Id
+
+    /** The id of the workflow */
     val workflowId: WorkflowId
 
+    /** The state of the workflow */
     val state: WorkflowState
 
+    /** The currently active stages */
     val activeStages: Set<StageId>
 
+    /** All stages of the workflow */
     val stages: Map<String, StageData<S>>
+
+    /**
+     * Checks if the stage with the given [stageId] is currently active
+     */
+    fun isActive(stageId: StageId) = stageId in activeStages
+
+    /**
+     * Checks if the given [stage] is currently active
+     */
+    fun isActive(stage: WorkflowDescription.Stage) = isActive(stage.id)
 
     /**
      * Returns true when the whole workflow is completed

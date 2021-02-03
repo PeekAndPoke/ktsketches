@@ -122,32 +122,34 @@ suspend fun main() {
         subjectRepo = subjectRepo,
     )
 
-    var result = engine.runAutomatic(
-        SubjectId(booking.id)
-    )
+    val workflowDataId = engine.initialize(SubjectId(booking.id)).data.dataId
+
+    var result = engine.runAutomatic(workflowDataId)
 
     println(result.data)
     println("------------------------------------------------------------------------------------------------")
 
     while (result.data.areNotAllStagesCompleted()) {
 
-        result = engine.runAutomatic(SubjectId(booking.id))
+        if (result.data.isActive(BookingFlow.InputStage)) {
 
-        if (BookingFlow.InputStage.id in result.data.activeStages) {
-            result = engine.executeStep(
-                SubjectId(booking.id),
+            engine.executeStep(
+                workflowDataId,
                 BookingFlow.InputStage.setCustomerAddress,
                 AddressData(address = "Set from external! Yeah!"),
             )
         }
 
-        delay(750)
+        result = engine.runAutomatic(workflowDataId)
+
+        delay(1000)
 
         println("Active stages: ${result.data.activeStages.map { it.id }}")
 
         val openStages = result.data.getIncompleteStages()
 
         println("Incomplete stages: ${openStages.map { it.id.id }}")
+        println("Workflow status: ${result.data.state}")
     }
 
     println("------------------------------------------------------------------------------------------------")

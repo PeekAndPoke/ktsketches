@@ -14,9 +14,22 @@ class WorkflowEngine<S>(
         val data: PersistentWorkflowData<S>,
     )
 
-    fun runAutomatic(subjectId: SubjectId): Result<S> {
+    fun initialize(subjectId: SubjectId): Result<S> {
 
-        return runFullCircle(subjectId) { data ->
+        // TODO: Catch error when the subject cannot be loaded
+        //       Add a comment on the workflow
+        //       Mark the entire workflow as failed
+        val workflowData = dataRepo.initialize(subjectId, workflow).toMutable()
+
+        // ensure that all stages and steps are setup within the data
+        workflowData.ensureIsInitialized()
+
+        return Result(subject = workflowData.subject, data = workflowData.persist())
+    }
+
+    fun runAutomatic(dataId: WorkflowData.Id): Result<S> {
+
+        return runFullCircle(dataId) { data ->
 
             val stages = workflow.stages.filter { it.id in data.activeStages }
 
@@ -40,9 +53,9 @@ class WorkflowEngine<S>(
         }
     }
 
-    fun <D : Any> executeStep(subjectId: SubjectId, step: WorkflowDescription.Step<D>, stepData: D): Result<S> {
+    fun <D : Any> executeStep(dataId: WorkflowData.Id, step: WorkflowDescription.Step<D>, stepData: D): Result<S> {
 
-        return runFullCircle(subjectId) { data ->
+        return runFullCircle(dataId) { data ->
 
             val stageAndStep = workflow.stages
                 .flatMap { stage -> stage.steps.map { stage to it } }
@@ -64,15 +77,16 @@ class WorkflowEngine<S>(
         }
     }
 
-    private fun runFullCircle(id: SubjectId, block: (data: MutableWorkflowData<S>) -> Unit): Result<S> {
+    private fun runFullCircle(id: WorkflowData.Id, block: (data: MutableWorkflowData<S>) -> Unit): Result<S> {
 
         // TODO: Catch error when the subject cannot be loaded
         //       Add a comment on the workflow
         //       Mark the entire workflow as failed
-        val workflowData = dataRepo.loadOrInit(id, workflow).toMutable()
+        val workflowData = dataRepo.load(id)?.toMutable()
+        // TODO: have a specfic exception here
+            ?: error("Could not load workflow data")
 
         // ensure that all stages and steps are setup within the data
-        // TODO: Unit-TEST for checking that all steps are initialized
         workflowData.ensureIsInitialized()
 
         // apply to work
@@ -97,6 +111,7 @@ class WorkflowEngine<S>(
         }
     }
 
+    // TODO: Unit-TEST for checking that all steps are initialized
     private fun MutableWorkflowData<S>.ensureIsInitialized() {
         // ensure that all stages and steps are setup within the data
         workflow.stages.forEach { stage ->
@@ -115,6 +130,7 @@ class WorkflowEngine<S>(
     }
 
     private fun PersistentWorkflowData<S>.toMutable(): MutableWorkflowData<S> = MutableWorkflowData(
+        dataId = dataId,
         subject = subjectRepo.loadWorkflowSubject(subjectId)
         // TODO: use a specific exception here (CouldNotLoadWorkflowSubject)
             ?: error("Workflow subject '${subjectId.id}' was not found"),
@@ -144,6 +160,7 @@ class WorkflowEngine<S>(
 
         // Create persistent workflow data
         val persistent = PersistentWorkflowData<S>(
+            dataId = dataId,
             workflowId = workflowId,
             state = state,
             subjectId = savedSubjectId,

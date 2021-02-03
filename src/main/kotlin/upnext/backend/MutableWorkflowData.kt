@@ -6,6 +6,8 @@ import java.time.Instant
 
 
 class MutableWorkflowData<S>(
+    /** The id of this workflow data */
+    override val dataId: WorkflowData.Id,
     subject: S,
     state: WorkflowState,
     val createdAt: Instant,
